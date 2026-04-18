@@ -22,7 +22,11 @@ final class DoorTariffAddressRule implements CreateOrderValidationRule
             return [];
         }
 
-        if ($request->toLocation === null || $request->toLocation->address === null || trim($request->toLocation->address) === '') {
+        if ($request->toLocation === null) {
+            return [];
+        }
+
+        if (trim($request->toLocation->address) === '') {
             return [sprintf('to_location.address is required for tariff %d.', $request->tariffCode)];
         }
 

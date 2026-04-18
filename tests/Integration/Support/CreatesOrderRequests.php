@@ -7,10 +7,12 @@ namespace Tests\Integration\Support;
 use WishboxCdek\Request\Order\CreateOrderRequest;
 use WishboxCdek\Request\Order\ContactDto;
 use WishboxCdek\Request\Order\MoneyDto;
-use WishboxCdek\Request\Order\LocationDto;
 use WishboxCdek\Request\Order\PackageRequestDto;
 use WishboxCdek\Request\Order\ItemRequestDto;
 use WishboxCdek\Request\Order\PhoneDto;
+use WishboxCdek\Request\Order\RequestFromLocationDto;
+use WishboxCdek\Request\Order\RequestToLocationDto;
+use WishboxCdek\Request\Order\SenderContactDto;
 
 trait CreatesOrderRequests
 {
@@ -18,7 +20,7 @@ trait CreatesOrderRequests
     {
         return CreateOrderRequest::make(
             tariffCode: 137,
-            sender: new ContactDto(
+            sender: new SenderContactDto(
                 name: 'Wishbox Sender',
                 phones: [
                     new PhoneDto(number: '+79990000001'),
@@ -52,16 +54,13 @@ trait CreatesOrderRequests
         )
             ->withNumber('WB-IT-' . date('YmdHis') . '-' . random_int(1000, 9999))
             ->withComment('Integration test order')
-            ->withFromLocation(new LocationDto(code: 44))
-            ->withToLocation(new LocationDto(
+            ->withFromLocation(new RequestFromLocationDto(code: 44))
+            ->withToLocation(new RequestToLocationDto(
                 code: 137,
                 address: 'Pushkina 1',
             ));
     }
 }
-
-
-
 
 
 

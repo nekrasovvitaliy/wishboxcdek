@@ -14,12 +14,13 @@ use WishboxCdek\Validation\Order\Rule\PackagesNotEmptyRule;
 use WishboxCdek\Validation\Order\Rule\ToLocationRequiredRule;
 use WishboxCdek\Validation\Order\Rule\WarehouseTariffDeliveryPointRule;
 
-final class CreateOrderRequestValidator
+final readonly class CreateOrderRequestValidator
 {
     /**
      * @var list<CreateOrderValidationRule>
      */
-    private readonly array $rules;
+    private array $rules;
+    private SenderContactDtoValidator $senderValidator;
 
     /**
      * @param list<CreateOrderValidationRule>|null $rules
@@ -28,6 +29,7 @@ final class CreateOrderRequestValidator
     {
         $tariffModeResolver = new TariffModeResolver();
 
+        $this->senderValidator = new SenderContactDtoValidator();
         $this->rules = $rules ?? [
             new PackagesNotEmptyRule(),
             new PackageItemsNotEmptyRule(),
@@ -39,7 +41,7 @@ final class CreateOrderRequestValidator
 
     public function validate(CreateOrderRequest $request): void
     {
-        $errors = [];
+        $errors = $this->senderValidator->validate($request->sender);
 
         foreach ($this->rules as $rule) {
             array_push($errors, ...$rule->validate($request));

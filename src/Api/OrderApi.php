@@ -14,19 +14,25 @@ use WishboxCdek\Response\Async\AsyncResponse;
 use WishboxCdek\Response\Order\OrderDetails;
 use WishboxCdek\Response\Order\OrderIntakeDto;
 use WishboxCdek\Validation\Order\CreateOrderRequestValidator;
+use WishboxCdek\Validation\Order\UpdateOrderRequestValidator;
 use WishboxCdek\Validation\Uuid\UuidValidator;
 
 final class OrderApi
 {
     private readonly CreateOrderRequestValidator $createOrderValidator;
+    private readonly UpdateOrderRequestValidator $updateOrderValidator;
     private readonly UuidValidator $uuidValidator;
 
     public function __construct(private readonly CdekClient $client)
     {
         $this->createOrderValidator = new CreateOrderRequestValidator();
+        $this->updateOrderValidator = new UpdateOrderRequestValidator();
         $this->uuidValidator = new UuidValidator();
     }
 
+    /**
+     * Returns order details by CDEK order number.
+     */
     public function getByNumber(GetOrderByNumberRequest $request): OrderDetails
     {
         return OrderDetails::fromArray(
@@ -34,6 +40,9 @@ final class OrderApi
         );
     }
 
+    /**
+     * Creates a new order.
+     */
     public function create(CreateOrderRequest $request): AsyncResponse
     {
         $this->createOrderValidator->validate($request);
@@ -43,13 +52,21 @@ final class OrderApi
         );
     }
 
+    /**
+     * Updates an existing order.
+     */
     public function update(UpdateOrderRequest $request): AsyncResponse
     {
+        $this->updateOrderValidator->validate($request);
+
         return AsyncResponse::fromArray(
             $this->client->request('PATCH', '/v2/orders', [], $request->toArray())
         );
     }
 
+    /**
+     * Returns order details by order UUID.
+     */
     public function getByUuid(string $uuid): OrderDetails
     {
         $this->uuidValidator->validate($uuid);
@@ -59,6 +76,9 @@ final class OrderApi
         );
     }
 
+    /**
+     * Deletes an order by UUID.
+     */
     public function delete(string $uuid): AsyncResponse
     {
         $this->uuidValidator->validate($uuid);
@@ -69,6 +89,8 @@ final class OrderApi
     }
 
     /**
+     * Returns intake records linked to an order.
+     *
      * @return list<OrderIntakeDto>
      */
     public function getIntakes(string $orderUuid): array
@@ -95,6 +117,9 @@ final class OrderApi
         return $intakes;
     }
 
+    /**
+     * Creates an order refusal request.
+     */
     public function createRefusal(string $uuid, CreateOrderRefusalRequest $request): AsyncResponse
     {
         $this->uuidValidator->validate($uuid);
@@ -104,6 +129,9 @@ final class OrderApi
         );
     }
 
+    /**
+     * Creates a client return for an order.
+     */
     public function createClientReturn(string $uuid, CreateClientReturnRequest $request): AsyncResponse
     {
         $this->uuidValidator->validate($uuid);

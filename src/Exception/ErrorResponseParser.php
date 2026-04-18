@@ -64,23 +64,20 @@ final class ErrorResponseParser
             return false;
         }
 
-        foreach ($response['requests'] as $request) {
-            if (!is_array($request)) {
-                continue;
+        return array_any(
+            $response['requests'],
+            static function (mixed $request): bool {
+                if (!is_array($request)) {
+                    return false;
+                }
+
+                if (isset($request['errors']) && is_array($request['errors']) && $request['errors'] !== []) {
+                    return true;
+                }
+
+                return ($request['state'] ?? null) === 'INVALID';
             }
-
-            if (isset($request['errors']) && is_array($request['errors']) && $request['errors'] !== []) {
-                return true;
-            }
-
-            $state = $request['state'] ?? null;
-
-            if (is_string($state) && $state === 'INVALID') {
-                return true;
-            }
-        }
-
-        return false;
+        );
     }
 
     /**

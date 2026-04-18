@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace WishboxCdek\Request\DeliveryPoint;
 
+use WishboxCdek\Enum\DeliveryPointType;
 use WishboxCdek\Enum\Language;
 use WishboxCdek\Request\RequestData;
 
@@ -19,7 +20,7 @@ final readonly class GetDeliveryPointsRequest extends RequestData
         public ?string $fiasGuid = null,
         public ?string $city = null,
         public ?float $paymentLimit = null,
-        public ?string $type = null,
+        public ?DeliveryPointType $type = null,
         public ?string $ownerCode = null,
         public ?bool $takeOnly = null,
         public ?bool $isHandout = null,
@@ -51,7 +52,7 @@ final readonly class GetDeliveryPointsRequest extends RequestData
             'fias_guid' => $this->fiasGuid,
             'city' => $this->city,
             'payment_limit' => $this->paymentLimit,
-            'type' => $this->type,
+            'type' => $this->type?->value,
             'owner_code' => $this->ownerCode,
             'take_only' => $this->takeOnly,
             'is_handout' => $this->isHandout,

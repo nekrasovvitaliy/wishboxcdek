@@ -14,7 +14,6 @@ final readonly class SellerDto extends RequestData
         public ?string $phone = null,
         public ?string $ownershipForm = null,
         public ?string $address = null,
-        public ?string $giisSubdivisionId = null,
     ) {
     }
 
@@ -26,7 +25,6 @@ final readonly class SellerDto extends RequestData
             'phone' => $this->phone,
             'ownership_form' => $this->ownershipForm,
             'address' => $this->address,
-            'giis_subdivision_id' => $this->giisSubdivisionId,
         ]);
     }
 }

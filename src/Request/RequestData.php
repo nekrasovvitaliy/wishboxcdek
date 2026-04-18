@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace WishboxCdek\Request;
 
+use InvalidArgumentException;
+
 abstract readonly class RequestData
 {
     abstract public function toArray(): array;
@@ -56,5 +58,33 @@ abstract readonly class RequestData
         }
 
         return $normalized;
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param array<mixed> $items
+     * @param class-string<T> $expectedClass
+     * @param string $owner
+     * @param string $field
+     *
+     * @return list<T>
+     */
+    protected static function validateList(array $items, string $expectedClass, string $owner, string $field): array
+    {
+        foreach ($items as $index => $item) {
+            if (!$item instanceof $expectedClass) {
+                throw new InvalidArgumentException(sprintf(
+                    '%s expects %s to contain only %s instances, %s given at index %d.',
+                    $owner,
+                    $field,
+                    $expectedClass,
+                    get_debug_type($item),
+                    $index
+                ));
+            }
+        }
+
+        return array_values($items);
     }
 }

@@ -12,7 +12,6 @@ final readonly class AdditionalServiceRequestDto extends RequestData
         public string $code,
         public int|float|string|null $parameter = null,
         public int|float|null $sum = null,
-        public array $extra = [],
     ) {
     }
 
@@ -22,7 +21,6 @@ final readonly class AdditionalServiceRequestDto extends RequestData
             'code' => $this->code,
             'parameter' => $this->parameter,
             'sum' => $this->sum,
-            ...$this->extra,
         ]);
     }
 }

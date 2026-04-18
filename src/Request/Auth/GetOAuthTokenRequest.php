@@ -9,8 +9,8 @@ use WishboxCdek\Request\RequestData;
 final readonly class GetOAuthTokenRequest extends RequestData
 {
     public function __construct(
-        public ?string $account = null,
-        public ?string $password = null,
+        public string $account,
+        public string $password,
         public string $grantType = 'client_credentials'
     ) {
     }

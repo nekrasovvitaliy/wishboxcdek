@@ -4,29 +4,60 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Request\Order;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use WishboxCdek\Enum\AdditionalOrderType;
+use WishboxCdek\Enum\OrderPrint;
 use WishboxCdek\Enum\OrderType;
 use WishboxCdek\Exception\OrderValidationException;
 use WishboxCdek\Request\Order\CreateOrderRequest;
 use WishboxCdek\Request\Order\ContactDto;
 use WishboxCdek\Request\Order\DeliveryRecipientCostAdvDto;
 use WishboxCdek\Request\Order\MoneyDto;
-use WishboxCdek\Request\Order\LocationDto;
 use WishboxCdek\Request\Order\PackageRequestDto;
 use WishboxCdek\Request\Order\ItemRequestDto;
 use WishboxCdek\Request\Order\PhoneDto;
 use WishboxCdek\Request\Order\AdditionalServiceRequestDto;
+use WishboxCdek\Request\Order\RequestFromLocationDto;
+use WishboxCdek\Request\Order\RequestToLocationDto;
+use WishboxCdek\Request\Order\SenderContactDto;
 use WishboxCdek\Request\Order\SellerDto;
 use WishboxCdek\Validation\Order\CreateOrderRequestValidator;
 
 final class CreateOrderRequestTest extends TestCase
 {
+    public function test_contact_dto_rejects_non_phone_dto_items(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('ContactDto expects phones to contain only WishboxCdek\Request\Order\PhoneDto instances, string given at index 0.');
+
+        new ContactDto(
+            name: 'Sender',
+            phones: ['+79990000001'],
+        );
+    }
+
+    public function test_request_to_location_dto_requires_non_empty_address(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('RequestToLocationDto expects address to be a non-empty string.');
+
+        new RequestToLocationDto(address: '   ');
+    }
+
+    public function test_request_to_location_dto_rejects_too_long_address(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('RequestToLocationDto expects address to be at most 255 characters long.');
+
+        new RequestToLocationDto(address: str_repeat('a', 256));
+    }
+
     public function test_to_array_serializes_nested_order_objects(): void
     {
         $request = CreateOrderRequest::make(
             tariffCode: 136,
-            sender: new ContactDto(
+            sender: new SenderContactDto(
                 name: 'Wishbox Sender',
                 phones: [
                     new PhoneDto(number: '+79990000001'),
@@ -73,8 +104,8 @@ final class CreateOrderRequestTest extends TestCase
             ->withShipperName('Wishbox Logistics')
             ->withShipperAddress('Sender warehouse 1')
             ->withSeller(new SellerDto(name: 'Wishbox Seller', inn: '7701234567'))
-            ->withFromLocation(new LocationDto(code: 44, address: 'Sender street 1'))
-            ->withToLocation(new LocationDto(code: 137, city: 'Saint Petersburg'))
+            ->withFromLocation(new RequestFromLocationDto(code: 44, address: 'Sender street 1'))
+            ->withToLocation(new RequestToLocationDto(address: 'Nevsky 1', code: 137, city: 'Saint Petersburg'))
             ->withDeliveryRecipientCost(new MoneyDto(value: 500, vatRate: 0))
             ->withDeliveryRecipientCostAdv([
                 new DeliveryRecipientCostAdvDto(threshold: 5000, sum: 250, vatRate: 0),
@@ -85,7 +116,7 @@ final class CreateOrderRequestTest extends TestCase
             ->withIsClientReturn(false)
             ->withHasReverseOrder(true)
             ->withDeveloperKey('wishbox-dev')
-            ->withPrint('WAYBILL')
+            ->withPrint(OrderPrint::WAYBILL)
             ->withWidgetToken('widget-token');
 
         self::assertSame([
@@ -140,6 +171,7 @@ final class CreateOrderRequestTest extends TestCase
             'to_location' => [
                 'code' => 137,
                 'city' => 'Saint Petersburg',
+                'address' => 'Nevsky 1',
             ],
             'services' => [
                 [
@@ -176,12 +208,94 @@ final class CreateOrderRequestTest extends TestCase
         ], $request->toArray());
     }
 
+    public function test_make_rejects_non_package_dto_items(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('CreateOrderRequest expects packages to contain only WishboxCdek\Request\Order\PackageRequestDto instances, string given at index 0.');
+
+        CreateOrderRequest::make(
+            tariffCode: 136,
+            sender: new SenderContactDto(
+                name: 'Sender',
+                phones: [new PhoneDto(number: '+79990000001')],
+            ),
+            recipient: new ContactDto(
+                name: 'Recipient',
+                phones: [new PhoneDto(number: '+79990000002')],
+            ),
+            packages: ['not-a-package'],
+        );
+    }
+
+    public function test_with_additional_order_types_rejects_non_enum_items(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('CreateOrderRequest expects additionalOrderTypes to contain only WishboxCdek\Enum\AdditionalOrderType instances, string given at index 0.');
+
+        CreateOrderRequest::make(
+            tariffCode: 136,
+            sender: new SenderContactDto(
+                name: 'Sender',
+                phones: [new PhoneDto(number: '+79990000001')],
+            ),
+            recipient: new ContactDto(
+                name: 'Recipient',
+                phones: [new PhoneDto(number: '+79990000002')],
+            ),
+            packages: [
+                new PackageRequestDto(weight: 1000),
+            ],
+        )->withAdditionalOrderTypes(['LTL']);
+    }
+
+    public function test_with_delivery_recipient_cost_adv_rejects_non_dto_items(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('CreateOrderRequest expects deliveryRecipientCostAdv to contain only WishboxCdek\Request\Order\DeliveryRecipientCostAdvDto instances, string given at index 0.');
+
+        CreateOrderRequest::make(
+            tariffCode: 136,
+            sender: new SenderContactDto(
+                name: 'Sender',
+                phones: [new PhoneDto(number: '+79990000001')],
+            ),
+            recipient: new ContactDto(
+                name: 'Recipient',
+                phones: [new PhoneDto(number: '+79990000002')],
+            ),
+            packages: [
+                new PackageRequestDto(weight: 1000),
+            ],
+        )->withDeliveryRecipientCostAdv(['bad-item']);
+    }
+
+    public function test_with_services_rejects_non_dto_items(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('CreateOrderRequest expects services to contain only WishboxCdek\Request\Order\AdditionalServiceRequestDto instances, string given at index 0.');
+
+        CreateOrderRequest::make(
+            tariffCode: 136,
+            sender: new SenderContactDto(
+                name: 'Sender',
+                phones: [new PhoneDto(number: '+79990000001')],
+            ),
+            recipient: new ContactDto(
+                name: 'Recipient',
+                phones: [new PhoneDto(number: '+79990000002')],
+            ),
+            packages: [
+                new PackageRequestDto(weight: 1000),
+            ],
+        )->withServices(['bad-service']);
+    }
+
     public function test_validator_requires_delivery_point_for_warehouse_tariff(): void
     {
         $validator = new CreateOrderRequestValidator();
         $request = CreateOrderRequest::make(
             tariffCode: 136,
-            sender: new ContactDto(
+            sender: new SenderContactDto(
                 name: 'Sender',
                 phones: [new PhoneDto(number: '+79990000001')],
             ),
@@ -205,7 +319,7 @@ final class CreateOrderRequestTest extends TestCase
                 ),
             ],
         )
-            ->withToLocation(new LocationDto(code: 137));
+            ->withToLocation(new RequestToLocationDto(address: 'Pushkina 1', code: 137));
 
         try {
             $validator->validate($request);
@@ -216,12 +330,12 @@ final class CreateOrderRequestTest extends TestCase
         }
     }
 
-    public function test_validator_requires_to_location_address_for_door_tariff(): void
+    public function test_validator_requires_to_location_for_door_tariff(): void
     {
         $validator = new CreateOrderRequestValidator();
         $request = CreateOrderRequest::make(
             tariffCode: 137,
-            sender: new ContactDto(
+            sender: new SenderContactDto(
                 name: 'Sender',
                 phones: [new PhoneDto(number: '+79990000001')],
             ),
@@ -244,15 +358,14 @@ final class CreateOrderRequestTest extends TestCase
                     ],
                 ),
             ],
-        )
-            ->withToLocation(new LocationDto(code: 137));
+        );
 
         try {
             $validator->validate($request);
             self::fail('Expected OrderValidationException was not thrown.');
         } catch (OrderValidationException $exception) {
-            self::assertSame('to_location.address is required for tariff 137.', $exception->getMessage());
-            self::assertSame(['to_location.address is required for tariff 137.'], $exception->getErrors());
+            self::assertSame('to_location is required.', $exception->getMessage());
+            self::assertSame(['to_location is required.'], $exception->getErrors());
         }
     }
 
@@ -261,7 +374,7 @@ final class CreateOrderRequestTest extends TestCase
         $validator = new CreateOrderRequestValidator();
         $request = CreateOrderRequest::make(
             tariffCode: 139,
-            sender: new ContactDto(
+            sender: new SenderContactDto(
                 name: 'Sender',
                 phones: [new PhoneDto(number: '+79990000001')],
             ),
@@ -273,7 +386,7 @@ final class CreateOrderRequestTest extends TestCase
                 new PackageRequestDto(weight: 1000),
             ],
         )
-            ->withToLocation(new LocationDto(code: 137, address: 'Pushkina 1'));
+            ->withToLocation(new RequestToLocationDto(address: 'Pushkina 1', code: 137));
 
         try {
             $validator->validate($request);
@@ -284,14 +397,6 @@ final class CreateOrderRequestTest extends TestCase
         }
     }
 }
-
-
-
-
-
-
-
-
 
 
 

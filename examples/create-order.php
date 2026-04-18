@@ -16,6 +16,8 @@ use WishboxCdek\Request\Order\LocationDto;
 use WishboxCdek\Request\Order\MoneyDto;
 use WishboxCdek\Request\Order\PackageRequestDto;
 use WishboxCdek\Request\Order\PhoneDto;
+use WishboxCdek\Request\Order\RequestToLocationDto;
+use WishboxCdek\Request\Order\SenderContactDto;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -42,7 +44,7 @@ $client = new CdekClient(
     ],
 );
 
-$sender = new ContactDto(
+$sender = new SenderContactDto(
     name: 'Wishbox Sender',
     phones: [
         new PhoneDto(number: '+79990000001'),
@@ -86,7 +88,7 @@ $request = CreateOrderRequest::make(
     ->withNumber('ORDER-' . date('YmdHis'))
     ->withComment('Create order with invalid phone example')
     ->withFromLocation(new LocationDto(code: 44))
-    ->withToLocation(new LocationDto(
+    ->withToLocation(new RequestToLocationDto(
         code: 137,
         address: 'Pushkina 1',
     ));

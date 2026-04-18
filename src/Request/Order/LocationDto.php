@@ -27,7 +27,6 @@ final readonly class LocationDto extends RequestData
         public int|float|null $paymentLimit = null,
         public ?string $address = null,
         public ?string $postalCode = null,
-        public array $extra = [],
     ) {
     }
 
@@ -52,7 +51,6 @@ final readonly class LocationDto extends RequestData
             'payment_limit' => $this->paymentLimit,
             'address' => $this->address,
             'postal_code' => $this->postalCode,
-            ...$this->extra,
         ]);
     }
 }

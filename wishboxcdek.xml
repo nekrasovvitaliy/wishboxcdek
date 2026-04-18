@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="component" method="upgrade">
+    <name>com_wishboxcdek</name>
+    <author>Wishbox</author>
+    <creationDate>2026-04-17</creationDate>
+    <version>0.1.0</version>
+    <description>Wishbox CDEK integration component</description>
+    <namespace path="administrator/src">Joomla\Component\WishboxCdek</namespace>
+    <administration>
+        <menu>COM_WISHBOXCDEK</menu>
+        <files folder="administrator">
+            <folder>services</folder>
+            <folder>src</folder>
+        </files>
+    </administration>
+</extension>

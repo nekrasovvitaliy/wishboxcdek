@@ -10,6 +10,7 @@ use Tests\Support\Http\FakeRequestFactory;
 use Tests\Support\Http\FakeResponse;
 use Tests\Support\Http\FakeStreamFactory;
 use WishboxCdek\CdekClient;
+use WishboxCdek\Exception\CdekException;
 use WishboxCdek\Exception\HttpException;
 use WishboxCdek\Request\Auth\GetOAuthTokenRequest;
 use WishboxCdek\Response\Auth\OAuthToken;
@@ -19,7 +20,7 @@ final class AuthApiTest extends TestCase
     public function test_get_oauth_token_sends_form_encoded_body(): void
     {
         $httpClient = new FakeHttpClient([
-            new FakeResponse(200, '{"access_token":"token","token_type":"bearer","expires_in":3600}'),
+            new FakeResponse(200, '{"access_token":"token","token_type":"bearer","expires_in":3600,"scope":"all","jti":"token-id"}'),
         ]);
 
         $client = new CdekClient(
@@ -38,6 +39,8 @@ final class AuthApiTest extends TestCase
         self::assertSame('token', $response->accessToken);
         self::assertSame('bearer', $response->tokenType);
         self::assertSame(3600, $response->expiresIn);
+        self::assertSame('all', $response->scope);
+        self::assertSame('token-id', $response->jti);
         self::assertCount(1, $httpClient->requests);
         self::assertSame('POST', $httpClient->requests[0]->getMethod());
         self::assertSame('application/x-www-form-urlencoded', $httpClient->requests[0]->getHeaderLine('Content-Type'));
@@ -71,5 +74,42 @@ final class AuthApiTest extends TestCase
             self::assertSame('invalid_client', $exception->getErrors()[0]->code);
             self::assertSame('Bad client credentials', $exception->getErrors()[0]->message);
         }
+    }
+
+    public function test_get_oauth_token_throws_cdek_exception_when_client_credentials_are_missing(): void
+    {
+        $client = new CdekClient(
+            new FakeHttpClient([]),
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            ['base_url' => CdekClient::SANDBOX_BASE_URL]
+        );
+
+        $this->expectException(CdekException::class);
+        $this->expectExceptionMessage('CDEK account credentials are missing.');
+
+        $client->auth()->getOAuthToken();
+    }
+
+    public function test_get_oauth_token_throws_cdek_exception_for_invalid_oauth_response(): void
+    {
+        $httpClient = new FakeHttpClient([
+            new FakeResponse(200, '{"access_token":"token","token_type":"bearer","expires_in":3600,"scope":"all"}'),
+        ]);
+
+        $client = new CdekClient(
+            $httpClient,
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            ['base_url' => CdekClient::SANDBOX_BASE_URL]
+        );
+
+        $this->expectException(CdekException::class);
+        $this->expectExceptionMessage('CDEK OAuth response does not contain jti.');
+
+        $client->auth()->getOAuthToken(new GetOAuthTokenRequest(
+            account: 'client-id',
+            password: 'client-secret',
+        ));
     }
 }

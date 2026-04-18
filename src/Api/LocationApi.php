@@ -15,10 +15,14 @@ use WishboxCdek\Response\Location\CityDto;
 use WishboxCdek\Response\Location\PostalcodesDto;
 use WishboxCdek\Response\Location\RegionDto;
 use WishboxCdek\Response\Location\SuggestedCityDto;
+use WishboxCdek\Validation\Location\GetCitiesRequestValidator;
 
 final class LocationApi
 {
-    public function __construct(private readonly CdekClient $client)
+    public function __construct(
+        private readonly CdekClient $client,
+        private readonly GetCitiesRequestValidator $getCitiesRequestValidator = new GetCitiesRequestValidator(),
+    )
     {
     }
 
@@ -67,7 +71,10 @@ final class LocationApi
      */
     public function getCities(?GetCitiesRequest $request = null): array
     {
-        $response = $this->client->request('GET', '/v2/location/cities', ($request ?? new GetCitiesRequest())->toArray());
+        $request ??= new GetCitiesRequest();
+        $this->getCitiesRequestValidator->validate($request);
+
+        $response = $this->client->request('GET', '/v2/location/cities', $request->toArray());
 
         return array_map(
             static fn (array $city): CityDto => CityDto::fromArray($city),

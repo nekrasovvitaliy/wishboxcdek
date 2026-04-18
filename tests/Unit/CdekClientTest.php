@@ -10,11 +10,14 @@ use Tests\Support\Http\FakeRequestFactory;
 use Tests\Support\Http\FakeResponse;
 use Tests\Support\Http\FakeStreamFactory;
 use WishboxCdek\CdekClient;
+use WishboxCdek\Enum\Language;
 use WishboxCdek\Enum\OrderType;
 use WishboxCdek\Enum\PassportClient;
 use WishboxCdek\Exception\ApiResponseException;
+use WishboxCdek\Exception\CdekException;
 use WishboxCdek\Exception\HttpException;
 use WishboxCdek\Exception\InvalidUuidException;
+use WishboxCdek\Exception\LocationValidationException;
 use WishboxCdek\Exception\OrderValidationException;
 use WishboxCdek\Request\DeliveryPoint\GetDeliveryPointsRequest;
 use WishboxCdek\Request\Intake\CreateIntakeRequest;
@@ -29,10 +32,13 @@ use WishboxCdek\Request\Order\ContactDto;
 use WishboxCdek\Request\Order\GetOrderByNumberRequest;
 use WishboxCdek\Request\Order\CreateOrderRequest;
 use WishboxCdek\Request\Order\ItemRequestDto;
-use WishboxCdek\Request\Order\LocationDto;
 use WishboxCdek\Request\Order\MoneyDto;
 use WishboxCdek\Request\Order\PackageRequestDto;
 use WishboxCdek\Request\Order\PhoneDto;
+use WishboxCdek\Request\Order\RequestFromLocationDto;
+use WishboxCdek\Request\Order\RequestToLocationDto;
+use WishboxCdek\Request\Order\SenderContactDto;
+use WishboxCdek\Request\Order\UpdateOrderRequest;
 use WishboxCdek\Request\Print\CreateBarcodesPrintRequest;
 use WishboxCdek\Request\Print\CreateOrdersPrintRequest;
 use WishboxCdek\Request\Print\PrintOrderReferenceDto;
@@ -73,7 +79,7 @@ final class CdekClientTest extends TestCase
             ]
         );
 
-        $response = $client->locations()->getRegions(new GetRegionsRequest(countryCodes: 'RU', size: 100));
+        $response = $client->locations()->getRegions(new GetRegionsRequest(countryCodes: 'RU', size: 100, lang: Language::ENG));
 
         self::assertCount(1, $response);
         self::assertContainsOnlyInstancesOf(RegionDto::class, $response);
@@ -82,9 +88,32 @@ final class CdekClientTest extends TestCase
         self::assertCount(1, $httpClient->requests);
         self::assertSame('GET', $httpClient->requests[0]->getMethod());
         self::assertSame('Bearer test-token', $httpClient->requests[0]->getHeaderLine('Authorization'));
-        self::assertStringContainsString('/v2/location/regions?country_codes=RU&size=100', (string) $httpClient->requests[0]->getUri());
+        self::assertStringContainsString('/v2/location/regions?country_codes=RU&size=100&lang=eng', (string) $httpClient->requests[0]->getUri());
 
     }
+
+    public function test_get_regions_allows_missing_optional_region_code(): void
+    {
+        $httpClient = new FakeHttpClient([
+            new FakeResponse(200, '[{"country_code":"RU","country":"Russia","region":"Moscow"}]'),
+        ]);
+
+        $client = new CdekClient(
+            $httpClient,
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            [
+                'base_url' => CdekClient::SANDBOX_BASE_URL,
+                'access_token' => 'test-token',
+            ]
+        );
+
+        $response = $client->locations()->getRegions(new GetRegionsRequest(countryCodes: 'RU'));
+
+        self::assertCount(1, $response);
+        self::assertNull($response[0]->regionCode);
+    }
+
     public function test_registries_returns_typed_response(): void
     {
         $httpClient = new FakeHttpClient([
@@ -220,7 +249,7 @@ final class CdekClientTest extends TestCase
             ]
         );
 
-        $response = $client->locations()->suggestCities(new SuggestCitiesRequest(city: 'Mos', countryCodes: 'RU', size: 10));
+        $response = $client->locations()->suggestCities(new SuggestCitiesRequest(name: 'Mos', countryCode: 'RU'));
 
         self::assertCount(1, $response);
         self::assertContainsOnlyInstancesOf(SuggestedCityDto::class, $response);
@@ -230,7 +259,7 @@ final class CdekClientTest extends TestCase
         self::assertSame('RU', $response[0]->countryCode);
         self::assertCount(1, $httpClient->requests);
         self::assertSame('GET', $httpClient->requests[0]->getMethod());
-        self::assertStringContainsString('/v2/location/suggest/cities?city=Mos&country_codes=RU&size=10', (string) $httpClient->requests[0]->getUri());
+        self::assertStringContainsString('/v2/location/suggest/cities?name=Mos&country_code=RU', (string) $httpClient->requests[0]->getUri());
     }
 
 
@@ -278,7 +307,17 @@ final class CdekClientTest extends TestCase
             ]
         );
 
-        $response = $client->locations()->getCities(new GetCitiesRequest(countryCodes: 'RU', city: 'Moscow', size: 10));
+        $response = $client->locations()->getCities(new GetCitiesRequest(
+            countryCodes: 'RU',
+            regionCode: 77,
+            kladrRegionCode: '7700000000000',
+            fiasRegionGuid: '88d7b0d4-3671-4e5a-bafc-b9556aa1b2e8',
+            kladrCode: '7700000000000',
+            fiasGuid: 'd37bb109-5355-46b0-ac51-7b6911a53fac',
+            city: 'Moscow',
+            size: 10,
+            lang: Language::ENG,
+        ));
 
         self::assertCount(1, $response);
         self::assertContainsOnlyInstancesOf(CityDto::class, $response);
@@ -292,7 +331,41 @@ final class CdekClientTest extends TestCase
         self::assertSame('101000', $response[0]->postalCode);
         self::assertCount(1, $httpClient->requests);
         self::assertSame('GET', $httpClient->requests[0]->getMethod());
-        self::assertStringContainsString('/v2/location/cities?country_codes=RU&city=Moscow&size=10', (string) $httpClient->requests[0]->getUri());
+        self::assertStringContainsString('/v2/location/cities?country_codes=RU&region_code=77&kladr_region_code=7700000000000&fias_region_guid=88d7b0d4-3671-4e5a-bafc-b9556aa1b2e8&kladr_code=7700000000000&fias_guid=d37bb109-5355-46b0-ac51-7b6911a53fac&city=Moscow&size=10&lang=eng', (string) $httpClient->requests[0]->getUri());
+    }
+
+    public function test_get_cities_throws_location_validation_exception_for_invalid_request(): void
+    {
+        $httpClient = new FakeHttpClient([]);
+
+        $client = new CdekClient(
+            $httpClient,
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            [
+                'base_url' => CdekClient::SANDBOX_BASE_URL,
+                'access_token' => 'test-token',
+            ]
+        );
+
+        try {
+            $client->locations()->getCities(new GetCitiesRequest(
+                countryCodes: 'RU,XXX',
+                fiasGuid: 'not-a-uuid',
+                page: -1,
+            ));
+            self::fail('Expected LocationValidationException was not thrown.');
+        } catch (LocationValidationException $exception) {
+            self::assertSame(
+                [
+                    'countryCodes contains invalid country code "XXX".',
+                    'page must be greater than or equal to 0.',
+                    'fiasGuid must be a valid UUID.',
+                ],
+                $exception->getErrors()
+            );
+            self::assertCount(0, $httpClient->requests);
+        }
     }
     public function test_postalcodes_request_builds_code_query_and_returns_object(): void
     {
@@ -369,7 +442,7 @@ final class CdekClientTest extends TestCase
         $response = $client->orders()->create(
             CreateOrderRequest::make(
                 tariffCode: 139,
-                sender: new ContactDto(
+                sender: new SenderContactDto(
                     name: 'Wishbox Sender',
                     phones: [
                         new PhoneDto(number: '+79990000001'),
@@ -398,8 +471,8 @@ final class CdekClientTest extends TestCase
                 ],
             )
                 ->withType(OrderType::INTERNET_SHOP)
-                ->withFromLocation(new LocationDto(code: 44))
-                ->withToLocation(new LocationDto(code: 137, address: 'Pushkina 1'))
+                ->withFromLocation(new RequestFromLocationDto(code: 44))
+                ->withToLocation(new RequestToLocationDto(code: 137, address: 'Pushkina 1'))
                 ->withNumber('ORDER-1')
         );
 
@@ -477,7 +550,7 @@ final class CdekClientTest extends TestCase
             $client->orders()->create(
                 CreateOrderRequest::make(
                     tariffCode: 136,
-                    sender: new ContactDto(
+                    sender: new SenderContactDto(
                         name: 'Sender',
                         phones: [new PhoneDto(number: '+79990000001')],
                     ),
@@ -487,7 +560,7 @@ final class CdekClientTest extends TestCase
                     ),
                     packages: [new PackageRequestDto(weight: 1000)],
                 )
-                    ->withToLocation(new LocationDto(code: 137))
+                    ->withToLocation(new RequestToLocationDto(address: 'Pushkina 1', code: 137))
             );
             self::fail('Expected OrderValidationException was not thrown.');
         } catch (OrderValidationException $exception) {
@@ -496,6 +569,40 @@ final class CdekClientTest extends TestCase
                 'packages[0].items must not be empty.',
                 'delivery_point is required for tariff 136.',
             ], $exception->getErrors());
+            self::assertCount(0, $httpClient->requests);
+        }
+    }
+
+    public function test_update_order_throws_validation_exception_before_http_request(): void
+    {
+        $httpClient = new FakeHttpClient([]);
+
+        $client = new CdekClient(
+            $httpClient,
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            [
+                'base_url' => CdekClient::SANDBOX_BASE_URL,
+                'access_token' => 'test-token',
+            ]
+        );
+
+        try {
+            $client->orders()->update(
+                UpdateOrderRequest::make(
+                    type: OrderType::DELIVERY,
+                    tariffCode: 136,
+                    recipient: new ContactDto(
+                        name: 'Recipient',
+                        phones: [new PhoneDto(number: '+79990000002')],
+                    ),
+                    packages: [new PackageRequestDto(weight: 1000)],
+                )
+            );
+            self::fail('Expected OrderValidationException was not thrown.');
+        } catch (OrderValidationException $exception) {
+            self::assertSame('sender is required for delivery orders.', $exception->getMessage());
+            self::assertSame(['sender is required for delivery orders.'], $exception->getErrors());
             self::assertCount(0, $httpClient->requests);
         }
     }
@@ -1014,7 +1121,7 @@ final class CdekClientTest extends TestCase
         $response = $client->orders()->create(
             CreateOrderRequest::make(
                 tariffCode: 139,
-                sender: new ContactDto(
+                sender: new SenderContactDto(
                     name: 'Wishbox Sender',
                     phones: [new PhoneDto(number: '+79990000001')],
                 ),
@@ -1038,7 +1145,7 @@ final class CdekClientTest extends TestCase
                     ),
                 ],
             )
-                ->withToLocation(new LocationDto(code: 137, address: 'Pushkina 1'))
+                ->withToLocation(new RequestToLocationDto(code: 137, address: 'Pushkina 1'))
         );
 
         self::assertSame('order-uuid', $response->entity?->uuid);
@@ -1065,7 +1172,7 @@ final class CdekClientTest extends TestCase
             $client->orders()->create(
                 CreateOrderRequest::make(
                     tariffCode: 139,
-                    sender: new ContactDto(
+                    sender: new SenderContactDto(
                         name: 'Wishbox Sender',
                         phones: [new PhoneDto(number: '+79990000001')],
                     ),
@@ -1089,7 +1196,7 @@ final class CdekClientTest extends TestCase
                         ),
                     ],
                 )
-                    ->withToLocation(new LocationDto(code: 137, address: 'Pushkina 1'))
+                    ->withToLocation(new RequestToLocationDto(code: 137, address: 'Pushkina 1'))
             );
             self::fail('Expected ApiResponseException was not thrown.');
         } catch (ApiResponseException $exception) {
@@ -1102,19 +1209,6 @@ final class CdekClientTest extends TestCase
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

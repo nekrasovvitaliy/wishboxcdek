@@ -11,7 +11,6 @@ final readonly class PhoneDto extends RequestData
     public function __construct(
         public string $number,
         public ?string $additional = null,
-        public array $extra = [],
     ) {
     }
 
@@ -20,7 +19,6 @@ final readonly class PhoneDto extends RequestData
         return $this->normalizeArray([
             'number' => $this->number,
             'additional' => $this->additional,
-            ...$this->extra,
         ]);
     }
 }

@@ -4,33 +4,150 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Request\Order;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use WishboxCdek\Enum\AdditionalOrderType;
+use WishboxCdek\Enum\OrderPrint;
 use WishboxCdek\Enum\OrderType;
 use WishboxCdek\Request\Order\AdditionalServiceRequestDto;
 use WishboxCdek\Request\Order\ContactDto;
 use WishboxCdek\Request\Order\DeliveryRecipientCostAdvDto;
 use WishboxCdek\Request\Order\ItemRequestDto;
-use WishboxCdek\Request\Order\LocationDto;
 use WishboxCdek\Request\Order\MoneyDto;
 use WishboxCdek\Request\Order\PackageRequestDto;
 use WishboxCdek\Request\Order\PhoneDto;
+use WishboxCdek\Request\Order\RequestFromLocationDto;
+use WishboxCdek\Request\Order\SenderContactDto;
 use WishboxCdek\Request\Order\SellerDto;
 use WishboxCdek\Request\Order\UpdateOrderRequest;
 
 final class UpdateOrderRequestTest extends TestCase
 {
+    public function test_make_allows_missing_sender_for_internet_shop(): void
+    {
+        $request = UpdateOrderRequest::make(
+            type: OrderType::INTERNET_SHOP,
+            tariffCode: 136,
+            recipient: new ContactDto(
+                name: 'Recipient',
+                phones: [new PhoneDto(number: '+79990000002')],
+            ),
+            packages: [
+                new PackageRequestDto(weight: 1000),
+            ],
+        );
+
+        self::assertNull($request->sender);
+        self::assertSame([
+            'type' => 1,
+            'tariff_code' => 136,
+            'recipient' => [
+                'name' => 'Recipient',
+                'phones' => [
+                    ['number' => '+79990000002'],
+                ],
+            ],
+            'packages' => [
+                [
+                    'weight' => 1000,
+                ],
+            ],
+        ], $request->toArray());
+    }
+
+    public function test_to_array_requires_sender_for_delivery(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('WishboxCdek\Request\Order\UpdateOrderRequest expects sender to be provided for DELIVERY orders.');
+
+        UpdateOrderRequest::make(
+            type: OrderType::DELIVERY,
+            tariffCode: 136,
+            recipient: new ContactDto(
+                name: 'Recipient',
+                phones: [new PhoneDto(number: '+79990000002')],
+            ),
+            packages: [
+                new PackageRequestDto(weight: 1000),
+            ],
+        )->toArray();
+    }
+
+    public function test_make_rejects_non_package_dto_items(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('WishboxCdek\Request\Order\UpdateOrderRequest expects packages to contain only WishboxCdek\Request\Order\PackageRequestDto instances, string given at index 0.');
+
+        UpdateOrderRequest::make(
+            type: OrderType::INTERNET_SHOP,
+            tariffCode: 136,
+            recipient: new ContactDto(
+                name: 'Recipient',
+                phones: [new PhoneDto(number: '+79990000002')],
+            ),
+            packages: ['not-a-package'],
+        );
+    }
+
+    public function test_with_additional_order_types_rejects_non_enum_items(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('WishboxCdek\Request\Order\UpdateOrderRequest expects additionalOrderTypes to contain only WishboxCdek\Enum\AdditionalOrderType instances, string given at index 0.');
+
+        UpdateOrderRequest::make(
+            type: OrderType::INTERNET_SHOP,
+            tariffCode: 136,
+            recipient: new ContactDto(
+                name: 'Recipient',
+                phones: [new PhoneDto(number: '+79990000002')],
+            ),
+            packages: [
+                new PackageRequestDto(weight: 1000),
+            ],
+        )->withAdditionalOrderTypes(['LTL']);
+    }
+
+    public function test_with_delivery_recipient_cost_adv_rejects_non_dto_items(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('WishboxCdek\Request\Order\UpdateOrderRequest expects deliveryRecipientCostAdv to contain only WishboxCdek\Request\Order\DeliveryRecipientCostAdvDto instances, string given at index 0.');
+
+        UpdateOrderRequest::make(
+            type: OrderType::INTERNET_SHOP,
+            tariffCode: 136,
+            recipient: new ContactDto(
+                name: 'Recipient',
+                phones: [new PhoneDto(number: '+79990000002')],
+            ),
+            packages: [
+                new PackageRequestDto(weight: 1000),
+            ],
+        )->withDeliveryRecipientCostAdv(['bad-item']);
+    }
+
+    public function test_with_services_rejects_non_dto_items(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('WishboxCdek\Request\Order\UpdateOrderRequest expects services to contain only WishboxCdek\Request\Order\AdditionalServiceRequestDto instances, string given at index 0.');
+
+        UpdateOrderRequest::make(
+            type: OrderType::INTERNET_SHOP,
+            tariffCode: 136,
+            recipient: new ContactDto(
+                name: 'Recipient',
+                phones: [new PhoneDto(number: '+79990000002')],
+            ),
+            packages: [
+                new PackageRequestDto(weight: 1000),
+            ],
+        )->withServices(['bad-service']);
+    }
+
     public function test_to_array_serializes_update_order_request(): void
     {
         $request = UpdateOrderRequest::make(
             type: OrderType::INTERNET_SHOP,
             tariffCode: 136,
-            sender: new ContactDto(
-                name: 'Wishbox Sender',
-                phones: [new PhoneDto(number: '+79990000001')],
-                contragentType: 'LEGAL_ENTITY',
-                email: 'sender@example.com',
-            ),
             recipient: new ContactDto(
                 name: 'John Doe',
                 phones: [new PhoneDto(number: '+79990000002', additional: '123')],
@@ -56,6 +173,12 @@ final class UpdateOrderRequestTest extends TestCase
                 ),
             ],
         )
+            ->withSender(new SenderContactDto(
+                name: 'Wishbox Sender',
+                phones: [new PhoneDto(number: '+79990000001')],
+                contragentType: 'LEGAL_ENTITY',
+                email: 'sender@example.com',
+            ))
             ->withUuid('order-uuid')
             ->withCdekNumber('1234567890')
             ->withAdditionalOrderTypes([
@@ -69,7 +192,7 @@ final class UpdateOrderRequestTest extends TestCase
             ->withShipperName('Wishbox Logistics')
             ->withShipperAddress('Sender warehouse 1')
             ->withSeller(new SellerDto(name: 'Wishbox Seller', inn: '7701234567'))
-            ->withFromLocation(new LocationDto(code: 44, address: 'Sender street 1'))
+            ->withFromLocation(new RequestFromLocationDto(code: 44, address: 'Sender street 1'))
             ->withToLocation(new LocationDto(code: 137, city: 'Saint Petersburg'))
             ->withDeliveryRecipientCost(new MoneyDto(value: 500, vatRate: 0))
             ->withDeliveryRecipientCostAdv([
@@ -81,7 +204,7 @@ final class UpdateOrderRequestTest extends TestCase
             ->withIsClientReturn(false)
             ->withHasReverseOrder(true)
             ->withDeveloperKey('wishbox-dev')
-            ->withPrint('WAYBILL')
+            ->withPrint(OrderPrint::WAYBILL)
             ->withWidgetToken('widget-token');
 
         self::assertSame([
