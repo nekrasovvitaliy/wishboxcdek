@@ -6,7 +6,7 @@ namespace WishboxCdek\Response\DeliveryPoint;
 
 use WishboxCdek\Response\Error\CdekMessage;
 
-final readonly class DeliveryPointDto
+final readonly class OfficeDto
 {
     /**
      * @param list<DeliveryPointPhoneDto> $phones

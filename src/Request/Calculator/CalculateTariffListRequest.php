@@ -13,7 +13,7 @@ final readonly class CalculateTariffListRequest extends RequestData
 {
     /**
      * @param list<AdditionalOrderType> $additionalOrderTypes
-     * @param list<PackageDto> $packages
+     * @param list<CalcPackageRequestDto> $packages
      */
     public function __construct(
         public LocationDto $fromLocation,

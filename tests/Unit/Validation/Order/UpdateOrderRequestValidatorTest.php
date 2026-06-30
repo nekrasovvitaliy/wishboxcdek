@@ -27,9 +27,9 @@ final class UpdateOrderRequestValidatorTest extends TestCase
                 phones: [new PhoneDto(number: '+79990000002')],
             ),
             packages: [
-                new PackageRequestDto(weight: 1000),
+                new PackageRequestDto(number: 'PKG-1', weight: 1000),
             ],
-        );
+        )->withUuid('order-uuid');
 
         $this->expectException(OrderValidationException::class);
         $this->expectExceptionMessage('sender is required for delivery orders.');
@@ -48,9 +48,9 @@ final class UpdateOrderRequestValidatorTest extends TestCase
                 phones: [new PhoneDto(number: '+79990000002')],
             ),
             packages: [
-                new PackageRequestDto(weight: 1000),
+                new PackageRequestDto(number: 'PKG-1', weight: 1000),
             ],
-        )->withSender(new SenderContactDto(
+        )->withUuid('order-uuid')->withSender(new SenderContactDto(
             name: '   ',
             phones: [new PhoneDto(number: '   ')],
         ));

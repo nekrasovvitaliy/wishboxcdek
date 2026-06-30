@@ -13,10 +13,10 @@ use WishboxCdek\Request\Order\AdditionalServiceRequestDto;
 use WishboxCdek\Request\Order\ContactDto;
 use WishboxCdek\Request\Order\DeliveryRecipientCostAdvDto;
 use WishboxCdek\Request\Order\ItemRequestDto;
+use WishboxCdek\Request\Order\LocationDto1;
 use WishboxCdek\Request\Order\MoneyDto;
 use WishboxCdek\Request\Order\PackageRequestDto;
 use WishboxCdek\Request\Order\PhoneDto;
-use WishboxCdek\Request\Order\RequestFromLocationDto;
 use WishboxCdek\Request\Order\SenderContactDto;
 use WishboxCdek\Request\Order\SellerDto;
 use WishboxCdek\Request\Order\UpdateOrderRequest;
@@ -33,13 +33,14 @@ final class UpdateOrderRequestTest extends TestCase
                 phones: [new PhoneDto(number: '+79990000002')],
             ),
             packages: [
-                new PackageRequestDto(weight: 1000),
+                new PackageRequestDto(number: 'PKG-1', weight: 1000),
             ],
-        );
+        )->withUuid('order-uuid');
 
         self::assertNull($request->sender);
         self::assertSame([
             'type' => 1,
+            'uuid' => 'order-uuid',
             'tariff_code' => 136,
             'recipient' => [
                 'name' => 'Recipient',
@@ -49,6 +50,7 @@ final class UpdateOrderRequestTest extends TestCase
             ],
             'packages' => [
                 [
+                    'number' => 'PKG-1',
                     'weight' => 1000,
                 ],
             ],
@@ -68,9 +70,9 @@ final class UpdateOrderRequestTest extends TestCase
                 phones: [new PhoneDto(number: '+79990000002')],
             ),
             packages: [
-                new PackageRequestDto(weight: 1000),
+                new PackageRequestDto(number: 'PKG-1', weight: 1000),
             ],
-        )->toArray();
+        )->withUuid('order-uuid')->toArray();
     }
 
     public function test_make_rejects_non_package_dto_items(): void
@@ -86,7 +88,7 @@ final class UpdateOrderRequestTest extends TestCase
                 phones: [new PhoneDto(number: '+79990000002')],
             ),
             packages: ['not-a-package'],
-        );
+        )->withUuid('order-uuid');
     }
 
     public function test_with_additional_order_types_rejects_non_enum_items(): void
@@ -102,9 +104,9 @@ final class UpdateOrderRequestTest extends TestCase
                 phones: [new PhoneDto(number: '+79990000002')],
             ),
             packages: [
-                new PackageRequestDto(weight: 1000),
+                new PackageRequestDto(number: 'PKG-1', weight: 1000),
             ],
-        )->withAdditionalOrderTypes(['LTL']);
+        )->withUuid('order-uuid')->withAdditionalOrderTypes(['LTL']);
     }
 
     public function test_with_delivery_recipient_cost_adv_rejects_non_dto_items(): void
@@ -120,9 +122,9 @@ final class UpdateOrderRequestTest extends TestCase
                 phones: [new PhoneDto(number: '+79990000002')],
             ),
             packages: [
-                new PackageRequestDto(weight: 1000),
+                new PackageRequestDto(number: 'PKG-1', weight: 1000),
             ],
-        )->withDeliveryRecipientCostAdv(['bad-item']);
+        )->withUuid('order-uuid')->withDeliveryRecipientCostAdv(['bad-item']);
     }
 
     public function test_with_services_rejects_non_dto_items(): void
@@ -138,9 +140,9 @@ final class UpdateOrderRequestTest extends TestCase
                 phones: [new PhoneDto(number: '+79990000002')],
             ),
             packages: [
-                new PackageRequestDto(weight: 1000),
+                new PackageRequestDto(number: 'PKG-1', weight: 1000),
             ],
-        )->withServices(['bad-service']);
+        )->withUuid('order-uuid')->withServices(['bad-service']);
     }
 
     public function test_to_array_serializes_update_order_request(): void
@@ -192,8 +194,8 @@ final class UpdateOrderRequestTest extends TestCase
             ->withShipperName('Wishbox Logistics')
             ->withShipperAddress('Sender warehouse 1')
             ->withSeller(new SellerDto(name: 'Wishbox Seller', inn: '7701234567'))
-            ->withFromLocation(new RequestFromLocationDto(code: 44, address: 'Sender street 1'))
-            ->withToLocation(new LocationDto(code: 137, city: 'Saint Petersburg'))
+            ->withFromLocation(new LocationDto1(code: 44, address: 'Sender street 1'))
+            ->withToLocation(new LocationDto1(code: 137, city: 'Saint Petersburg'))
             ->withDeliveryRecipientCost(new MoneyDto(value: 500, vatRate: 0))
             ->withDeliveryRecipientCostAdv([
                 new DeliveryRecipientCostAdvDto(threshold: 5000, sum: 250, vatRate: 0),
@@ -293,5 +295,23 @@ final class UpdateOrderRequestTest extends TestCase
             'print' => 'WAYBILL',
             'widget_token' => 'widget-token',
         ], $request->toArray());
+    }
+
+    public function test_to_array_requires_uuid_or_cdek_number(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('WishboxCdek\Request\Order\UpdateOrderRequest expects uuid or cdekNumber to be provided.');
+
+        UpdateOrderRequest::make(
+            type: OrderType::INTERNET_SHOP,
+            tariffCode: 136,
+            recipient: new ContactDto(
+                name: 'Recipient',
+                phones: [new PhoneDto(number: '+79990000002')],
+            ),
+            packages: [
+                new PackageRequestDto(number: 'PKG-1', weight: 1000),
+            ],
+        )->toArray();
     }
 }

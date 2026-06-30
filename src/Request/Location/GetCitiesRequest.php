@@ -9,9 +9,6 @@ use WishboxCdek\Request\RequestData;
 
 final readonly class GetCitiesRequest extends RequestData
 {
-    /**
-     * @param ?string $countryCodes Comma-separated ISO 3166-1 alpha-2 country codes.
-     */
     public function __construct(
         public ?string $countryCodes = null,
         public ?int $regionCode = null,
@@ -30,7 +27,7 @@ final readonly class GetCitiesRequest extends RequestData
     public function toArray(): array
     {
         return $this->filterNulls([
-            'country_codes' => $this->countryCodes,
+            'country_codes' => $this->normalizeCountryCodes($this->countryCodes),
             'region_code' => $this->regionCode,
             'kladr_region_code' => $this->kladrRegionCode,
             'fias_region_guid' => $this->fiasRegionGuid,

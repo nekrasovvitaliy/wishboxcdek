@@ -57,9 +57,9 @@ final readonly class UpdateOrderRequest extends RequestData
 		public ?string           $shipperAddress = null,
 		public ?MoneyDto         $deliveryRecipientCost = null,
 		array                    $deliveryRecipientCostAdv = [],
-			public ?SellerDto              $seller = null,
-			public ?RequestFromLocationDto $fromLocation = null,
-			public ?RequestToLocationDto   $toLocation = null,
+		public ?SellerDto        $seller = null,
+		public ?LocationDto1     $fromLocation = null,
+		public ?LocationDto1     $toLocation = null,
 		array                    $services = [],
 		public ?bool             $isClientReturn = null,
 		public ?bool             $hasReverseOrder = null,
@@ -174,12 +174,12 @@ final readonly class UpdateOrderRequest extends RequestData
 		return $this->rebuild(seller: $seller);
 	}
 
-	public function withFromLocation(RequestFromLocationDto $fromLocation): self
+	public function withFromLocation(LocationDto1 $fromLocation): self
 	{
 		return $this->rebuild(fromLocation: $fromLocation);
 	}
 
-	public function withToLocation(RequestToLocationDto $toLocation): self
+	public function withToLocation(LocationDto1 $toLocation): self
 	{
 		return $this->rebuild(toLocation: $toLocation);
 	}
@@ -266,15 +266,15 @@ final readonly class UpdateOrderRequest extends RequestData
 		?string                 $deliveryPoint = null,
 		?string                 $dateInvoice = null,
 		?string                 $shipperName = null,
-		?string                 $shipperAddress = null,
-		?MoneyDto               $deliveryRecipientCost = null,
-		?array                  $deliveryRecipientCostAdv = null,
-		?SellerDto              $seller = null,
-		?RequestFromLocationDto $fromLocation = null,
-		?RequestToLocationDto   $toLocation = null,
-		?array                  $services = null,
-		?bool                   $isClientReturn = null,
-		?bool                   $hasReverseOrder = null,
+			?string                 $shipperAddress = null,
+			?MoneyDto               $deliveryRecipientCost = null,
+			?array                  $deliveryRecipientCostAdv = null,
+			?SellerDto              $seller = null,
+			?LocationDto1           $fromLocation = null,
+			?LocationDto1           $toLocation = null,
+			?array                  $services = null,
+			?bool                   $isClientReturn = null,
+			?bool                   $hasReverseOrder = null,
 		?string                 $developerKey = null,
 		?OrderPrint             $print = null,
 		?string                 $widgetToken = null,
@@ -319,6 +319,16 @@ final readonly class UpdateOrderRequest extends RequestData
 				'%s expects sender to be provided for %s orders.',
 				self::class,
 				OrderType::DELIVERY->name
+			));
+		}
+
+		$hasUuid = $this->uuid !== null && trim($this->uuid) !== '';
+		$hasCdekNumber = $this->cdekNumber !== null && trim($this->cdekNumber) !== '';
+
+		if (!$hasUuid && !$hasCdekNumber) {
+			throw new InvalidArgumentException(sprintf(
+				'%s expects uuid or cdekNumber to be provided.',
+				self::class,
 			));
 		}
 	}

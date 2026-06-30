@@ -11,7 +11,7 @@ use WishboxCdek\Request\RequestData;
 final readonly class GetDeliveryPointsRequest extends RequestData
 {
     public function __construct(
-        public ?string $countryCodes = null,
+        public ?string $countryCode = null,
         public ?string $fiasRegionGuid = null,
         public ?int $regionCode = null,
         public ?string $postalCode = null,
@@ -43,7 +43,7 @@ final readonly class GetDeliveryPointsRequest extends RequestData
     public function toArray(): array
     {
         return $this->filterNulls([
-            'country_codes' => $this->countryCodes,
+            'country_code' => $this->countryCode,
             'fias_region_guid' => $this->fiasRegionGuid,
             'region_code' => $this->regionCode,
             'postal_code' => $this->postalCode,

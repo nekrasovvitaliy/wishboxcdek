@@ -31,7 +31,7 @@ final class LocationApiIntegrationTest extends CdekIntegrationTestCase
         $client = $this->createClient();
 
         $response = $client->locations()->getCities(new GetCitiesRequest(
-            countryCodes: 'RU,KZ,BY',
+            countryCodes: 'AM,DE',
             size: 10,
         ));
 
@@ -39,6 +39,9 @@ final class LocationApiIntegrationTest extends CdekIntegrationTestCase
         self::assertNotEmpty($response);
         self::assertContainsOnlyInstancesOf(CityDto::class, $response);
         self::assertNotSame('', $response[0]->city);
-        self::assertContains($response[0]->countryCode, ['RU', 'KZ']);
+
+        foreach ($response as $city) {
+            self::assertContains($city->countryCode, ['AM', 'DE']);
+        }
     }
 }

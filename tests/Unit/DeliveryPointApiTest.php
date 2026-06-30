@@ -12,7 +12,8 @@ use Tests\Support\Http\FakeResponse;
 use Tests\Support\Http\FakeStreamFactory;
 use WishboxCdek\CdekClient;
 use WishboxCdek\Request\DeliveryPoint\GetDeliveryPointsRequest;
-use WishboxCdek\Response\DeliveryPoint\DeliveryPointDto;
+use WishboxCdek\Response\DeliveryPoint\DeliveryPointListResponse;
+use WishboxCdek\Response\DeliveryPoint\OfficeDto;
 
 final class DeliveryPointApiTest extends TestCase
 {
@@ -35,7 +36,7 @@ final class DeliveryPointApiTest extends TestCase
         $response = $client->deliveryPoints()->getList(new GetDeliveryPointsRequest(cityCode: 44, haveCash: true, size: 10, lang: Language::ENG));
 
         self::assertCount(1, $response);
-        self::assertContainsOnlyInstancesOf(DeliveryPointDto::class, $response);
+        self::assertContainsOnlyInstancesOf(OfficeDto::class, $response);
         self::assertSame('MSK123', $response[0]->code);
         self::assertSame('delivery-point-uuid', $response[0]->uuid);
         self::assertSame('Business center', $response[0]->addressComment);
@@ -105,8 +106,35 @@ final class DeliveryPointApiTest extends TestCase
         self::assertSame('GET', $httpClient->requests[0]->getMethod());
         self::assertStringContainsString('/v2/deliverypoints?city_code=44&have_cash=1&size=10&lang=eng', (string) $httpClient->requests[0]->getUri());
     }
+
+    public function test_get_list_includes_pagination_headers(): void
+    {
+        $httpClient = new FakeHttpClient([
+            (new FakeResponse(200, '[]'))
+                ->withHeader('X-Current-Page', '2')
+                ->withHeader('X-Page-Size', '10')
+                ->withHeader('X-Total-Elements', '25')
+                ->withHeader('X-Total-Pages', '3'),
+        ]);
+
+        $client = new CdekClient(
+            $httpClient,
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            [
+                'base_url' => CdekClient::SANDBOX_BASE_URL,
+                'access_token' => 'test-token',
+            ]
+        );
+
+        $response = $client->deliveryPoints()->getList(new GetDeliveryPointsRequest(size: 10));
+
+        self::assertInstanceOf(DeliveryPointListResponse::class, $response);
+        self::assertSame(2, $response->currentPage);
+        self::assertSame(10, $response->pageSize);
+        self::assertSame(25, $response->totalElements);
+        self::assertSame(3, $response->totalPages);
+    }
 }
-
-
 
 

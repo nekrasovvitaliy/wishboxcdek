@@ -3,6 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/WishboxCdek.iml" filepath="$PROJECT_DIR$/.idea/WishboxCdek.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../pkg_radicalmart_wishboxcdek_j4/.idea/pkg_radicalmart_wishboxcdek_j4.iml" filepath="$PROJECT_DIR$/../pkg_radicalmart_wishboxcdek_j4/.idea/pkg_radicalmart_wishboxcdek_j4.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../pkg_wishboxcdek_j4/.idea/pkg_wishboxcdek_j4.iml" filepath="$PROJECT_DIR$/../pkg_wishboxcdek_j4/.idea/pkg_wishboxcdek_j4.iml" />
     </modules>
   </component>
 </project>

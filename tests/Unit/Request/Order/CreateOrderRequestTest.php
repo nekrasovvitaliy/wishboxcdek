@@ -243,7 +243,7 @@ final class CreateOrderRequestTest extends TestCase
                 phones: [new PhoneDto(number: '+79990000002')],
             ),
             packages: [
-                new PackageRequestDto(weight: 1000),
+                new PackageRequestDto(number: 'PKG-1', weight: 1000),
             ],
         )->withAdditionalOrderTypes(['LTL']);
     }
@@ -264,7 +264,7 @@ final class CreateOrderRequestTest extends TestCase
                 phones: [new PhoneDto(number: '+79990000002')],
             ),
             packages: [
-                new PackageRequestDto(weight: 1000),
+                new PackageRequestDto(number: 'PKG-1', weight: 1000),
             ],
         )->withDeliveryRecipientCostAdv(['bad-item']);
     }
@@ -285,7 +285,7 @@ final class CreateOrderRequestTest extends TestCase
                 phones: [new PhoneDto(number: '+79990000002')],
             ),
             packages: [
-                new PackageRequestDto(weight: 1000),
+                new PackageRequestDto(number: 'PKG-1', weight: 1000),
             ],
         )->withServices(['bad-service']);
     }
@@ -305,6 +305,7 @@ final class CreateOrderRequestTest extends TestCase
             ),
             packages: [
                 new PackageRequestDto(
+                    number: 'PKG-1',
                     weight: 1000,
                     items: [
                         new ItemRequestDto(
@@ -345,6 +346,7 @@ final class CreateOrderRequestTest extends TestCase
             ),
             packages: [
                 new PackageRequestDto(
+                    number: 'PKG-1',
                     weight: 1000,
                     items: [
                         new ItemRequestDto(
@@ -383,7 +385,7 @@ final class CreateOrderRequestTest extends TestCase
                 phones: [new PhoneDto(number: '+79990000002')],
             ),
             packages: [
-                new PackageRequestDto(weight: 1000),
+                new PackageRequestDto(number: 'PKG-1', weight: 1000),
             ],
         )
             ->withToLocation(new RequestToLocationDto(address: 'Pushkina 1', code: 137));
@@ -397,8 +399,6 @@ final class CreateOrderRequestTest extends TestCase
         }
     }
 }
-
-
 
 
 

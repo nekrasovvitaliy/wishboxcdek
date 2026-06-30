@@ -25,6 +25,7 @@ use WishboxCdek\Exception\ApiResponseException;
 use WishboxCdek\Exception\CdekException;
 use WishboxCdek\Exception\ErrorResponseParser;
 use WishboxCdek\Exception\HttpException;
+use WishboxCdek\Response\CdekResponse;
 
 final class CdekClient
 {
@@ -163,6 +164,26 @@ final class CdekClient
         bool $authenticated = true,
         bool $throwOnBusinessErrors = true
     ): array {
+        return $this->requestWithHeaders(
+            $method,
+            $uri,
+            $query,
+            $body,
+            $headers,
+            $authenticated,
+            $throwOnBusinessErrors
+        )->data;
+    }
+
+    public function requestWithHeaders(
+        string $method,
+        string $uri,
+        array $query = [],
+        array|string|null $body = null,
+        array $headers = [],
+        bool $authenticated = true,
+        bool $throwOnBusinessErrors = true
+    ): CdekResponse {
         if ($authenticated) {
             $this->ensureAccessToken();
             $headers['Authorization'] = 'Bearer ' . $this->accessToken;
@@ -236,7 +257,7 @@ final class CdekClient
         array|string|null $body,
         array $headers,
         bool $throwOnBusinessErrors
-    ): array {
+    ): CdekResponse {
         $payload = null;
 
         if (is_array($body)) {
@@ -271,7 +292,7 @@ final class CdekClient
                 throw new HttpException('CDEK request failed with empty response body.', $statusCode);
             }
 
-            return [];
+            return new CdekResponse([], $response->getHeaders());
         }
 
         $decoded = json_decode($responseBody, true);
@@ -294,7 +315,7 @@ final class CdekClient
             throw new ApiResponseException($message, $decoded, $errors, $warnings, $requestStates);
         }
 
-        return $decoded;
+        return new CdekResponse($decoded, $response->getHeaders());
     }
 
     private function sendRaw(
@@ -365,4 +386,3 @@ final class CdekClient
         return $url . '?' . http_build_query($query);
     }
 }
-

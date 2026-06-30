@@ -45,7 +45,7 @@ use WishboxCdek\Request\Print\PrintOrderReferenceDto;
 use WishboxCdek\Request\Passport\GetPassportRequest;
 use WishboxCdek\Request\Registry\GetRegistriesRequest;
 use WishboxCdek\Response\Async\AsyncResponse;
-use WishboxCdek\Response\DeliveryPoint\DeliveryPointDto;
+use WishboxCdek\Response\DeliveryPoint\OfficeDto;
 use WishboxCdek\Response\Intake\IntakeAvailableDaysResponse;
 use WishboxCdek\Response\Location\CityByCoordinatesDto;
 use WishboxCdek\Response\Location\CityDto;
@@ -205,7 +205,7 @@ final class CdekClientTest extends TestCase
         $response = $client->deliveryPoints()->getList(new GetDeliveryPointsRequest(cityCode: 44, haveCash: true, size: 10));
 
         self::assertCount(1, $response);
-        self::assertContainsOnlyInstancesOf(DeliveryPointDto::class, $response);
+        self::assertContainsOnlyInstancesOf(OfficeDto::class, $response);
         self::assertSame('MSK123', $response[0]->code);
         self::assertSame('delivery-point-uuid', $response[0]->uuid);
         self::assertSame('Pickup point', $response[0]->name);
@@ -233,6 +233,32 @@ final class CdekClientTest extends TestCase
         self::assertSame('GET', $httpClient->requests[0]->getMethod());
         self::assertStringContainsString('/v2/deliverypoints?city_code=44&have_cash=1&size=10', (string) $httpClient->requests[0]->getUri());
     }
+
+    public function test_delivery_points_uses_single_country_code_filter(): void
+    {
+        $httpClient = new FakeHttpClient([
+            new FakeResponse(200, '[]'),
+        ]);
+
+        $client = new CdekClient(
+            $httpClient,
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            [
+                'base_url' => CdekClient::SANDBOX_BASE_URL,
+                'access_token' => 'test-token',
+            ]
+        );
+
+        $client->deliveryPoints()->getList(new GetDeliveryPointsRequest(
+            countryCode: 'AM',
+            size: 10,
+        ));
+
+        self::assertCount(1, $httpClient->requests);
+        self::assertStringContainsString('/v2/deliverypoints?country_code=AM&size=10', (string) $httpClient->requests[0]->getUri());
+    }
+
     public function test_suggest_cities_returns_typed_objects(): void
     {
         $httpClient = new FakeHttpClient([
@@ -456,6 +482,7 @@ final class CdekClientTest extends TestCase
                 ),
                 packages: [
                     new PackageRequestDto(
+                        number: 'PKG-1',
                         weight: 1000,
                         items: [
                             new ItemRequestDto(
@@ -558,7 +585,7 @@ final class CdekClientTest extends TestCase
                         name: 'Recipient',
                         phones: [new PhoneDto(number: '+79990000002')],
                     ),
-                    packages: [new PackageRequestDto(weight: 1000)],
+                    packages: [new PackageRequestDto(number: 'PKG-1', weight: 1000)],
                 )
                     ->withToLocation(new RequestToLocationDto(address: 'Pushkina 1', code: 137))
             );
@@ -596,8 +623,8 @@ final class CdekClientTest extends TestCase
                         name: 'Recipient',
                         phones: [new PhoneDto(number: '+79990000002')],
                     ),
-                    packages: [new PackageRequestDto(weight: 1000)],
-                )
+                    packages: [new PackageRequestDto(number: 'PKG-1', weight: 1000)],
+                )->withUuid('order-uuid')
             );
             self::fail('Expected OrderValidationException was not thrown.');
         } catch (OrderValidationException $exception) {
@@ -1131,6 +1158,7 @@ final class CdekClientTest extends TestCase
                 ),
                 packages: [
                     new PackageRequestDto(
+                        number: 'PKG-1',
                         weight: 1000,
                         items: [
                             new ItemRequestDto(
@@ -1182,6 +1210,7 @@ final class CdekClientTest extends TestCase
                     ),
                     packages: [
                         new PackageRequestDto(
+                            number: 'PKG-1',
                             weight: 1000,
                             items: [
                                 new ItemRequestDto(
@@ -1209,7 +1238,3 @@ final class CdekClientTest extends TestCase
         }
     }
 }
-
-
-
-

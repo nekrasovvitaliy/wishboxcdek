@@ -10,6 +10,24 @@ abstract readonly class RequestData
 {
     abstract public function toArray(): array;
 
+    protected function normalizeCountryCodes(string|array|null $countryCodes): ?string
+    {
+        if ($countryCodes === null) {
+            return null;
+        }
+
+        if (is_string($countryCodes)) {
+            $countryCodes = array_map('trim', explode(',', $countryCodes));
+        }
+
+        $countryCodes = array_values(array_filter(
+            $countryCodes,
+            static fn (mixed $value): bool => is_string($value) && $value !== ''
+        ));
+
+        return $countryCodes === [] ? null : implode(',', $countryCodes);
+    }
+
     protected function filterNulls(array $data): array
     {
         return array_filter(

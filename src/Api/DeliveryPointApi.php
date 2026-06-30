@@ -6,24 +6,18 @@ namespace WishboxCdek\Api;
 
 use WishboxCdek\CdekClient;
 use WishboxCdek\Request\DeliveryPoint\GetDeliveryPointsRequest;
-use WishboxCdek\Response\DeliveryPoint\DeliveryPointDto;
+use WishboxCdek\Response\DeliveryPoint\DeliveryPointListResponse;
 
-final class DeliveryPointApi
+final readonly class DeliveryPointApi
 {
-    public function __construct(private readonly CdekClient $client)
+    public function __construct(private CdekClient $client)
     {
     }
 
-    /**
-     * @return list<DeliveryPointDto>
-     */
-    public function getList(?GetDeliveryPointsRequest $request = null): array
+    public function getList(?GetDeliveryPointsRequest $request = null): DeliveryPointListResponse
     {
-        $response = $this->client->request('GET', '/v2/deliverypoints', ($request ?? new GetDeliveryPointsRequest())->toArray());
+        $response = $this->client->requestWithHeaders('GET', '/v2/deliverypoints', ($request ?? new GetDeliveryPointsRequest())->toArray());
 
-        return array_map(
-            static fn (array $deliveryPoint): DeliveryPointDto => DeliveryPointDto::fromArray($deliveryPoint),
-            $response,
-        );
+        return DeliveryPointListResponse::fromCdekResponse($response);
     }
 }

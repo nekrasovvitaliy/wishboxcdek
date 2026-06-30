@@ -14,6 +14,7 @@ final class GetDeliveryPointsRequestTest extends TestCase
     public function test_to_array_serializes_delivery_point_enums(): void
     {
         $request = new GetDeliveryPointsRequest(
+            countryCode: 'RU',
             cityCode: 44,
             type: DeliveryPointType::PVZ,
             haveCash: true,
@@ -22,6 +23,7 @@ final class GetDeliveryPointsRequestTest extends TestCase
         );
 
         self::assertSame([
+            'country_code' => 'RU',
             'city_code' => 44,
             'type' => 'PVZ',
             'have_cash' => true,
@@ -38,6 +40,13 @@ final class GetDeliveryPointsRequestTest extends TestCase
             'city_code' => 44,
         ], $request->toArray());
     }
+
+    public function test_to_array_serializes_country_code(): void
+    {
+        $request = new GetDeliveryPointsRequest(countryCode: 'RU');
+
+        self::assertSame([
+            'country_code' => 'RU',
+        ], $request->toArray());
+    }
 }
-
-

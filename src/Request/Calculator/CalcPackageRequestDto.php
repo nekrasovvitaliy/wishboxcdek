@@ -6,7 +6,7 @@ namespace WishboxCdek\Request\Calculator;
 
 use WishboxCdek\Request\RequestData;
 
-final readonly class PackageDto extends RequestData
+final readonly class CalcPackageRequestDto extends RequestData
 {
     public function __construct(
         public int $weight,
