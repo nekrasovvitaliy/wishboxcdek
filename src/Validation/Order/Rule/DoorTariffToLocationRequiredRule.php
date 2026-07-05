@@ -7,10 +7,10 @@ namespace WishboxCdek\Validation\Order\Rule;
 use WishboxCdek\Request\Order\OrderCreateRequestDto;
 use WishboxCdek\Support\Tariff\TariffModeResolver;
 
-final readonly class DoorTariffAddressRule implements CreateOrderValidationRule
+final class DoorTariffToLocationRequiredRule implements CreateOrderValidationRule
 {
     public function __construct(
-        private TariffModeResolver $tariffModeResolver,
+        private readonly TariffModeResolver $tariffModeResolver,
     ) {
     }
 
@@ -23,11 +23,7 @@ final readonly class DoorTariffAddressRule implements CreateOrderValidationRule
         }
 
         if ($request->toLocation === null) {
-            return [];
-        }
-
-        if (trim($request->toLocation->address) === '') {
-            return [sprintf('to_location.address is required for tariff %d.', $request->tariffCode)];
+            return [sprintf('to_location is required for tariff %d.', $request->tariffCode)];
         }
 
         return [];

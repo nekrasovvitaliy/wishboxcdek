@@ -9,9 +9,9 @@ use WishboxCdek\Request\Order\OrderCreateRequestDto;
 use WishboxCdek\Support\Tariff\TariffModeResolver;
 use WishboxCdek\Validation\Order\Rule\CreateOrderValidationRule;
 use WishboxCdek\Validation\Order\Rule\DoorTariffAddressRule;
+use WishboxCdek\Validation\Order\Rule\DoorTariffToLocationRequiredRule;
 use WishboxCdek\Validation\Order\Rule\PackageItemsNotEmptyRule;
 use WishboxCdek\Validation\Order\Rule\PackagesNotEmptyRule;
-use WishboxCdek\Validation\Order\Rule\ToLocationRequiredRule;
 use WishboxCdek\Validation\Order\Rule\WarehouseTariffDeliveryPointRule;
 
 final readonly class CreateOrderRequestValidator
@@ -33,7 +33,7 @@ final readonly class CreateOrderRequestValidator
         $this->rules = $rules ?? [
             new PackagesNotEmptyRule(),
             new PackageItemsNotEmptyRule(),
-            new ToLocationRequiredRule(),
+            new DoorTariffToLocationRequiredRule($tariffModeResolver),
             new DoorTariffAddressRule($tariffModeResolver),
             new WarehouseTariffDeliveryPointRule($tariffModeResolver),
         ];

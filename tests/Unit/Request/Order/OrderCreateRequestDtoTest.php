@@ -369,16 +369,52 @@ final class OrderCreateRequestDtoTest extends TestCase
             $validator->validate($request);
             self::fail('Expected OrderValidationException was not thrown.');
         } catch (OrderValidationException $exception) {
-            self::assertSame('to_location is required.', $exception->getMessage());
-            self::assertSame(['to_location is required.'], $exception->getErrors());
+            self::assertSame('to_location is required for tariff 137.', $exception->getMessage());
+            self::assertSame(['to_location is required for tariff 137.'], $exception->getErrors());
         }
+    }
+
+    public function test_validator_does_not_require_to_location_for_warehouse_tariff(): void
+    {
+        $validator = new CreateOrderRequestValidator();
+        $request = OrderCreateRequestDto::make(
+            tariffCode: 136,
+            sender: new SenderContactDto(
+                name: 'Sender',
+                phones: [new PhoneDto(number: '+79990000001')],
+            ),
+            recipient: new RecipientContactDto(
+                name: 'Recipient',
+                phones: [new PhoneDto(number: '+79990000002')],
+            ),
+            packages: [
+                new PackageRequestDto(
+                    number: 'PKG-1',
+                    weight: 1000,
+                    items: [
+                        new ItemRequestDto(
+                            name: 'Item',
+                            wareKey: 'SKU-1',
+                            payment: new MoneyDto(value: 1000),
+                            cost: 1000,
+                            weight: 1000,
+                            amount: 1,
+                        ),
+                    ],
+                ),
+            ],
+        )->withDeliveryPoint('MSK1');
+
+        $validator->validate($request);
+
+        self::assertTrue(true);
     }
 
     public function test_validator_requires_package_items(): void
     {
         $validator = new CreateOrderRequestValidator();
         $request = OrderCreateRequestDto::make(
-            tariffCode: 139,
+            tariffCode: 999,
             sender: new SenderContactDto(
                 name: 'Sender',
                 phones: [new PhoneDto(number: '+79990000001')],
@@ -390,8 +426,7 @@ final class OrderCreateRequestDtoTest extends TestCase
             packages: [
                 new PackageRequestDto(number: 'PKG-1', weight: 1000),
             ],
-        )
-            ->withToLocation(new RequestToLocationDto(address: 'Pushkina 1', code: 137));
+        );
 
         try {
             $validator->validate($request);
@@ -402,7 +437,6 @@ final class OrderCreateRequestDtoTest extends TestCase
         }
     }
 }
-
 
 
 
