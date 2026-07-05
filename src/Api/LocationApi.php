@@ -11,10 +11,10 @@ use WishboxCdek\Request\Location\GetPostalcodesRequest;
 use WishboxCdek\Request\Location\GetRegionsRequest;
 use WishboxCdek\Request\Location\SuggestCitiesRequest;
 use WishboxCdek\Response\Location\CityByCoordinatesDto;
-use WishboxCdek\Response\Location\CityDto;
 use WishboxCdek\Response\Location\PostalcodesDto;
 use WishboxCdek\Response\Location\RegionDto;
 use WishboxCdek\Response\Location\SuggestedCityDto;
+use WishboxCdek\Response\Location\V2LocationCityDto;
 use WishboxCdek\Validation\Location\GetCitiesRequestValidator;
 
 final class LocationApi
@@ -67,7 +67,7 @@ final class LocationApi
     }
 
     /**
-     * @return list<CityDto>
+     * @return list<V2LocationCityDto>
      */
     public function getCities(?GetCitiesRequest $request = null): array
     {
@@ -77,7 +77,7 @@ final class LocationApi
         $response = $this->client->request('GET', '/v2/location/cities', $request->toArray());
 
         return array_map(
-            static fn (array $city): CityDto => CityDto::fromArray($city),
+            static fn (array $city): V2LocationCityDto => V2LocationCityDto::fromArray($city),
             $response,
         );
     }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace WishboxCdek\Validation\Order;
 
 use WishboxCdek\Exception\OrderValidationException;
-use WishboxCdek\Request\Order\CreateOrderRequest;
+use WishboxCdek\Request\Order\OrderCreateRequestDto;
 use WishboxCdek\Support\Tariff\TariffModeResolver;
 use WishboxCdek\Validation\Order\Rule\CreateOrderValidationRule;
 use WishboxCdek\Validation\Order\Rule\DoorTariffAddressRule;
@@ -39,7 +39,7 @@ final readonly class CreateOrderRequestValidator
         ];
     }
 
-    public function validate(CreateOrderRequest $request): void
+    public function validate(OrderCreateRequestDto $request): void
     {
         $errors = $this->senderValidator->validate($request->sender);
 

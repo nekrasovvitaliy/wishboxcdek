@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace WishboxCdek\Validation\Order\Rule;
 
-use WishboxCdek\Request\Order\CreateOrderRequest;
+use WishboxCdek\Request\Order\OrderCreateRequestDto;
 use WishboxCdek\Support\Tariff\TariffModeResolver;
 
 final class DoorTariffAddressRule implements CreateOrderValidationRule
@@ -14,7 +14,7 @@ final class DoorTariffAddressRule implements CreateOrderValidationRule
     ) {
     }
 
-    public function validate(CreateOrderRequest $request): array
+    public function validate(OrderCreateRequestDto $request): array
     {
         $mode = $this->tariffModeResolver->resolve($request->tariffCode);
 

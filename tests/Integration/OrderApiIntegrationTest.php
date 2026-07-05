@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Integration;
 
 use Tests\Integration\Support\CreatesOrderRequests;
-use WishboxCdek\Response\Async\AsyncResponse;
-use WishboxCdek\Response\Order\OrderDetails;
+use WishboxCdek\Response\Order\ResponseDtoOrderResponseDto;
+use WishboxCdek\Response\Order\ResponseDtoRootEntityDto;
 
 final class OrderApiIntegrationTest extends CdekIntegrationTestCase
 {
@@ -19,12 +19,12 @@ final class OrderApiIntegrationTest extends CdekIntegrationTestCase
 
         $createResponse = $client->orders()->create($createRequest);
 
-        self::assertInstanceOf(AsyncResponse::class, $createResponse);
+        self::assertInstanceOf(ResponseDtoRootEntityDto::class, $createResponse);
         self::assertNotNull($createResponse->entity);
-        self::assertNotSame('', $response->entity?->uuid ?? '');
+        self::assertNotSame('', $createResponse->entity?->uuid ?? '');
         self::assertNotEmpty($createResponse->requests);
         self::assertNotNull($createResponse->requests[0]->requestUuid);
-        self::assertContains($response->requests[0]->state, ['ACCEPTED', 'WAITING']);
+        self::assertContains($createResponse->requests[0]->state, ['ACCEPTED', 'WAITING']);
     }
 
     public function test_get_order_by_uuid_returns_order_data(): void
@@ -50,9 +50,8 @@ final class OrderApiIntegrationTest extends CdekIntegrationTestCase
             usleep(500000);
         }
 
-        self::assertInstanceOf(OrderDetails::class, $order);
+        self::assertInstanceOf(ResponseDtoOrderResponseDto::class, $order);
         self::assertNotNull($order->entity);
         self::assertSame($orderUuid, $order->entity?->uuid);
     }
 }
-

@@ -12,7 +12,6 @@ final readonly class SellerDto
         public ?string $phone = null,
         public ?string $ownershipForm = null,
         public ?string $address = null,
-        public ?string $giisSubdivisionId = null,
     ) {
     }
 
@@ -24,7 +23,6 @@ final readonly class SellerDto
             phone: isset($data['phone']) ? (string) $data['phone'] : null,
             ownershipForm: isset($data['ownership_form']) ? (string) $data['ownership_form'] : null,
             address: isset($data['address']) ? (string) $data['address'] : null,
-            giisSubdivisionId: isset($data['giis_subdivision_id']) ? (string) $data['giis_subdivision_id'] : null,
         );
     }
 }

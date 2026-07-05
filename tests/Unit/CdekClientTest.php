@@ -28,17 +28,17 @@ use WishboxCdek\Request\Location\GetCityByCoordinatesRequest;
 use WishboxCdek\Request\Location\GetPostalcodesRequest;
 use WishboxCdek\Request\Location\GetRegionsRequest;
 use WishboxCdek\Request\Location\SuggestCitiesRequest;
-use WishboxCdek\Request\Order\ContactDto;
 use WishboxCdek\Request\Order\GetOrderByNumberRequest;
-use WishboxCdek\Request\Order\CreateOrderRequest;
+use WishboxCdek\Request\Order\OrderCreateRequestDto;
 use WishboxCdek\Request\Order\ItemRequestDto;
 use WishboxCdek\Request\Order\MoneyDto;
 use WishboxCdek\Request\Order\PackageRequestDto;
 use WishboxCdek\Request\Order\PhoneDto;
+use WishboxCdek\Request\Order\RecipientContactDto;
 use WishboxCdek\Request\Order\RequestFromLocationDto;
 use WishboxCdek\Request\Order\RequestToLocationDto;
 use WishboxCdek\Request\Order\SenderContactDto;
-use WishboxCdek\Request\Order\UpdateOrderRequest;
+use WishboxCdek\Request\Order\OrderUpdateRequestDto;
 use WishboxCdek\Request\Print\CreateBarcodesPrintRequest;
 use WishboxCdek\Request\Print\CreateOrdersPrintRequest;
 use WishboxCdek\Request\Print\PrintOrderReferenceDto;
@@ -46,13 +46,15 @@ use WishboxCdek\Request\Passport\GetPassportRequest;
 use WishboxCdek\Request\Registry\GetRegistriesRequest;
 use WishboxCdek\Response\Async\AsyncResponse;
 use WishboxCdek\Response\DeliveryPoint\OfficeDto;
+use WishboxCdek\Response\Error\SimplifiedResponseDto1;
 use WishboxCdek\Response\Intake\IntakeAvailableDaysResponse;
 use WishboxCdek\Response\Location\CityByCoordinatesDto;
-use WishboxCdek\Response\Location\CityDto;
 use WishboxCdek\Response\Location\PostalcodesDto;
 use WishboxCdek\Response\Location\RegionDto;
 use WishboxCdek\Response\Location\SuggestedCityDto;
-use WishboxCdek\Response\Order\OrderDetails;
+use WishboxCdek\Response\Location\V2LocationCityDto;
+use WishboxCdek\Response\Order\ResponseDtoOrderResponseDto;
+use WishboxCdek\Response\Order\ResponseDtoRootEntityDto;
 use WishboxCdek\Response\Order\OrderIntakeDto;
 use WishboxCdek\Response\Print\PrintBarcodesResponse;
 use WishboxCdek\Response\Print\PrintOrderDto;
@@ -346,7 +348,7 @@ final class CdekClientTest extends TestCase
         ));
 
         self::assertCount(1, $response);
-        self::assertContainsOnlyInstancesOf(CityDto::class, $response);
+        self::assertContainsOnlyInstancesOf(V2LocationCityDto::class, $response);
         self::assertSame(44, $response[0]->code);
         self::assertSame('061925d2-e3ae-4fc4-b824-0a1be89f77be', $response[0]->cityUuid);
         self::assertSame('Moscow', $response[0]->city);
@@ -452,7 +454,7 @@ final class CdekClientTest extends TestCase
     public function test_create_order_sends_json_payload_built_from_request_objects(): void
     {
         $httpClient = new FakeHttpClient([
-            new FakeResponse(200, '{"entity":{"uuid":"test-order"},"requests":[{"request_uuid":"req-1","type":"CREATE","date_time":"2019-08-24T14:15:22Z","state":"ACCEPTED"}]}'),
+            new FakeResponse(202, '{"entity":{"uuid":"test-order"},"requests":[{"request_uuid":"req-1","type":"CREATE","date_time":"2019-08-24T14:15:22Z","state":"ACCEPTED"}]}'),
         ]);
 
         $client = new CdekClient(
@@ -466,7 +468,7 @@ final class CdekClientTest extends TestCase
         );
 
         $response = $client->orders()->create(
-            CreateOrderRequest::make(
+            OrderCreateRequestDto::make(
                 tariffCode: 139,
                 sender: new SenderContactDto(
                     name: 'Wishbox Sender',
@@ -474,7 +476,7 @@ final class CdekClientTest extends TestCase
                         new PhoneDto(number: '+79990000001'),
                     ],
                 ),
-                recipient: new ContactDto(
+                recipient: new RecipientContactDto(
                     name: 'John Doe',
                     phones: [
                         new PhoneDto(number: '+79990000002'),
@@ -503,7 +505,7 @@ final class CdekClientTest extends TestCase
                 ->withNumber('ORDER-1')
         );
 
-        self::assertInstanceOf(AsyncResponse::class, $response);
+        self::assertInstanceOf(ResponseDtoRootEntityDto::class, $response);
         self::assertSame('test-order', $response->entity?->uuid);
         self::assertCount(1, $response->requests);
         self::assertSame('req-1', $response->requests[0]->requestUuid);
@@ -539,6 +541,7 @@ final class CdekClientTest extends TestCase
                 ],
                 'packages' => [
                     [
+                        'number' => 'PKG-1',
                         'weight' => 1000,
                         'items' => [
                             [
@@ -575,13 +578,13 @@ final class CdekClientTest extends TestCase
 
         try {
             $client->orders()->create(
-                CreateOrderRequest::make(
+                OrderCreateRequestDto::make(
                     tariffCode: 136,
                     sender: new SenderContactDto(
                         name: 'Sender',
                         phones: [new PhoneDto(number: '+79990000001')],
                     ),
-                    recipient: new ContactDto(
+                    recipient: new RecipientContactDto(
                         name: 'Recipient',
                         phones: [new PhoneDto(number: '+79990000002')],
                     ),
@@ -600,6 +603,62 @@ final class CdekClientTest extends TestCase
         }
     }
 
+    public function test_create_order_returns_simplified_response_for_bad_request(): void
+    {
+        $httpClient = new FakeHttpClient([
+            new FakeResponse(400, '{"errors":[{"code":"v2_bad_request","additional_code":"0x0003","message":"Bad create"}],"warnings":[{"code":"warn_create","message":"Create warning"}]}'),
+        ]);
+
+        $client = new CdekClient(
+            $httpClient,
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            [
+                'base_url' => CdekClient::SANDBOX_BASE_URL,
+                'access_token' => 'test-token',
+            ]
+        );
+
+        $response = $client->orders()->create(
+            OrderCreateRequestDto::make(
+                tariffCode: 139,
+                sender: new SenderContactDto(
+                    name: 'Wishbox Sender',
+                    phones: [new PhoneDto(number: '+79990000001')],
+                ),
+                recipient: new RecipientContactDto(
+                    name: 'John Doe',
+                    phones: [new PhoneDto(number: '+79990000002')],
+                ),
+                packages: [
+                    new PackageRequestDto(
+                        number: 'PKG-1',
+                        weight: 1000,
+                        items: [
+                            new ItemRequestDto(
+                                name: 'Item',
+                                wareKey: 'SKU-1',
+                                payment: new MoneyDto(value: 1000),
+                                cost: 1000,
+                                weight: 1000,
+                                amount: 1,
+                            ),
+                        ],
+                    ),
+                ],
+            )
+                ->withToLocation(new RequestToLocationDto(code: 137, address: 'Pushkina 1'))
+        );
+
+        self::assertInstanceOf(SimplifiedResponseDto1::class, $response);
+        self::assertCount(1, $response->errors);
+        self::assertSame('v2_bad_request', $response->errors[0]->code);
+        self::assertSame('0x0003', $response->errors[0]->additionalCode);
+        self::assertSame('Bad create', $response->errors[0]->message);
+        self::assertCount(1, $response->warnings);
+        self::assertSame('warn_create', $response->warnings[0]->code);
+    }
+
     public function test_update_order_throws_validation_exception_before_http_request(): void
     {
         $httpClient = new FakeHttpClient([]);
@@ -616,10 +675,10 @@ final class CdekClientTest extends TestCase
 
         try {
             $client->orders()->update(
-                UpdateOrderRequest::make(
+                OrderUpdateRequestDto::make(
                     type: OrderType::DELIVERY,
                     tariffCode: 136,
-                    recipient: new ContactDto(
+                    recipient: new RecipientContactDto(
                         name: 'Recipient',
                         phones: [new PhoneDto(number: '+79990000002')],
                     ),
@@ -632,6 +691,78 @@ final class CdekClientTest extends TestCase
             self::assertSame(['sender is required for delivery orders.'], $exception->getErrors());
             self::assertCount(0, $httpClient->requests);
         }
+    }
+
+    public function test_update_order_returns_root_entity_response_for_accepted_response(): void
+    {
+        $httpClient = new FakeHttpClient([
+            new FakeResponse(202, '{"entity":{"uuid":"updated-order"},"requests":[{"request_uuid":"req-update-1","type":"UPDATE","state":"ACCEPTED"}]}'),
+        ]);
+
+        $client = new CdekClient(
+            $httpClient,
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            [
+                'base_url' => CdekClient::SANDBOX_BASE_URL,
+                'access_token' => 'test-token',
+            ]
+        );
+
+        $response = $client->orders()->update(
+            OrderUpdateRequestDto::make(
+                type: OrderType::INTERNET_SHOP,
+                tariffCode: 136,
+                recipient: new RecipientContactDto(
+                    name: 'Recipient',
+                    phones: [new PhoneDto(number: '+79990000002')],
+                ),
+                packages: [new PackageRequestDto(number: 'PKG-1', weight: 1000)],
+            )->withUuid('order-uuid')
+        );
+
+        self::assertInstanceOf(ResponseDtoRootEntityDto::class, $response);
+        self::assertSame('updated-order', $response->entity?->uuid);
+        self::assertSame('req-update-1', $response->requests[0]->requestUuid);
+        self::assertSame('ACCEPTED', $response->requests[0]->state);
+        self::assertSame('PATCH', $httpClient->requests[0]->getMethod());
+    }
+
+    public function test_update_order_returns_simplified_response_for_bad_request(): void
+    {
+        $httpClient = new FakeHttpClient([
+            new FakeResponse(400, '{"errors":[{"code":"v2_bad_request","additional_code":"0x0002","message":"Bad update"}],"warnings":[{"code":"warn_update","message":"Update warning"}]}'),
+        ]);
+
+        $client = new CdekClient(
+            $httpClient,
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            [
+                'base_url' => CdekClient::SANDBOX_BASE_URL,
+                'access_token' => 'test-token',
+            ]
+        );
+
+        $response = $client->orders()->update(
+            OrderUpdateRequestDto::make(
+                type: OrderType::INTERNET_SHOP,
+                tariffCode: 136,
+                recipient: new RecipientContactDto(
+                    name: 'Recipient',
+                    phones: [new PhoneDto(number: '+79990000002')],
+                ),
+                packages: [new PackageRequestDto(number: 'PKG-1', weight: 1000)],
+            )->withUuid('order-uuid')
+        );
+
+        self::assertInstanceOf(SimplifiedResponseDto1::class, $response);
+        self::assertCount(1, $response->errors);
+        self::assertSame('v2_bad_request', $response->errors[0]->code);
+        self::assertSame('0x0002', $response->errors[0]->additionalCode);
+        self::assertSame('Bad update', $response->errors[0]->message);
+        self::assertCount(1, $response->warnings);
+        self::assertSame('warn_update', $response->warnings[0]->code);
     }
 
     public function test_get_order_by_uuid_returns_typed_order_details(): void
@@ -652,7 +783,7 @@ final class CdekClientTest extends TestCase
 
         $response = $client->orders()->getByUuid('72753031-e66b-4146-ab8c-52179ef4020a');
 
-        self::assertInstanceOf(OrderDetails::class, $response);
+        self::assertInstanceOf(ResponseDtoOrderResponseDto::class, $response);
         self::assertSame('order-uuid', $response->entity?->uuid);
         self::assertSame('1234567890', $response->entity?->cdekNumber);
         self::assertSame('ORDER-1', $response->entity?->number);
@@ -684,7 +815,7 @@ final class CdekClientTest extends TestCase
 
         $response = $client->orders()->getByNumber(new GetOrderByNumberRequest(imNumber: 'ORDER-1'));
 
-        self::assertInstanceOf(OrderDetails::class, $response);
+        self::assertInstanceOf(ResponseDtoOrderResponseDto::class, $response);
         self::assertSame('order-uuid', $response->entity?->uuid);
         self::assertSame('ORDER-1', $response->entity?->number);
         self::assertTrue($response->hasErrors());
@@ -693,7 +824,34 @@ final class CdekClientTest extends TestCase
         self::assertStringContainsString('/v2/orders?im_number=ORDER-1', (string) $httpClient->requests[0]->getUri());
     }
 
-    public function test_delete_order_returns_typed_async_response(): void
+    public function test_get_order_by_number_returns_simplified_response_for_bad_request(): void
+    {
+        $httpClient = new FakeHttpClient([
+            new FakeResponse(400, '{"errors":[{"code":"v2_entity_not_found","additional_code":"0x0001","message":"Order not found"}],"warnings":[{"code":"warn_1","message":"Warning"}]}'),
+        ]);
+
+        $client = new CdekClient(
+            $httpClient,
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            [
+                'base_url' => CdekClient::SANDBOX_BASE_URL,
+                'access_token' => 'test-token',
+            ]
+        );
+
+        $response = $client->orders()->getByNumber(new GetOrderByNumberRequest(imNumber: 'ORDER-404'));
+
+        self::assertInstanceOf(SimplifiedResponseDto1::class, $response);
+        self::assertCount(1, $response->errors);
+        self::assertSame('v2_entity_not_found', $response->errors[0]->code);
+        self::assertSame('0x0001', $response->errors[0]->additionalCode);
+        self::assertSame('Order not found', $response->errors[0]->message);
+        self::assertCount(1, $response->warnings);
+        self::assertSame('warn_1', $response->warnings[0]->code);
+    }
+
+    public function test_delete_order_returns_root_entity_response(): void
     {
         $httpClient = new FakeHttpClient([
             new FakeResponse(202, '{"entity":{"uuid":"deleted-order-uuid"},"requests":[{"request_uuid":"req-delete-1","type":"DELETE","state":"ACCEPTED"}]}'),
@@ -711,13 +869,40 @@ final class CdekClientTest extends TestCase
 
         $response = $client->orders()->delete('72753031-e66b-4146-ab8c-52179ef4020a');
 
-        self::assertInstanceOf(AsyncResponse::class, $response);
+        self::assertInstanceOf(ResponseDtoRootEntityDto::class, $response);
         self::assertSame('deleted-order-uuid', $response->entity?->uuid);
         self::assertSame('DELETE', $response->requests[0]->type);
         self::assertSame('ACCEPTED', $response->requests[0]->state);
         self::assertCount(1, $httpClient->requests);
         self::assertSame('DELETE', $httpClient->requests[0]->getMethod());
         self::assertStringContainsString('/v2/orders/72753031-e66b-4146-ab8c-52179ef4020a', (string) $httpClient->requests[0]->getUri());
+    }
+
+    public function test_delete_order_returns_simplified_response_for_bad_request(): void
+    {
+        $httpClient = new FakeHttpClient([
+            new FakeResponse(400, '{"errors":[{"code":"v2_bad_request","additional_code":"0x0004","message":"Bad delete"}],"warnings":[{"code":"warn_delete","message":"Delete warning"}]}'),
+        ]);
+
+        $client = new CdekClient(
+            $httpClient,
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            [
+                'base_url' => CdekClient::SANDBOX_BASE_URL,
+                'access_token' => 'test-token',
+            ]
+        );
+
+        $response = $client->orders()->delete('72753031-e66b-4146-ab8c-52179ef4020a');
+
+        self::assertInstanceOf(SimplifiedResponseDto1::class, $response);
+        self::assertCount(1, $response->errors);
+        self::assertSame('v2_bad_request', $response->errors[0]->code);
+        self::assertSame('0x0004', $response->errors[0]->additionalCode);
+        self::assertSame('Bad delete', $response->errors[0]->message);
+        self::assertCount(1, $response->warnings);
+        self::assertSame('warn_delete', $response->warnings[0]->code);
     }
 
     public function test_get_order_intakes_returns_typed_objects(): void
@@ -1146,13 +1331,13 @@ final class CdekClientTest extends TestCase
         );
 
         $response = $client->orders()->create(
-            CreateOrderRequest::make(
+            OrderCreateRequestDto::make(
                 tariffCode: 139,
                 sender: new SenderContactDto(
                     name: 'Wishbox Sender',
                     phones: [new PhoneDto(number: '+79990000001')],
                 ),
-                recipient: new ContactDto(
+                recipient: new RecipientContactDto(
                     name: 'John Doe',
                     phones: [new PhoneDto(number: '+79990000002')],
                 ),
@@ -1198,13 +1383,13 @@ final class CdekClientTest extends TestCase
 
         try {
             $client->orders()->create(
-                CreateOrderRequest::make(
+                OrderCreateRequestDto::make(
                     tariffCode: 139,
                     sender: new SenderContactDto(
                         name: 'Wishbox Sender',
                         phones: [new PhoneDto(number: '+79990000001')],
                     ),
-                    recipient: new ContactDto(
+                    recipient: new RecipientContactDto(
                         name: 'John Doe',
                         phones: [new PhoneDto(number: '+79990000002')],
                     ),

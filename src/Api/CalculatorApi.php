@@ -5,44 +5,44 @@ declare(strict_types=1);
 namespace WishboxCdek\Api;
 
 use WishboxCdek\CdekClient;
-use WishboxCdek\Request\Calculator\CalculateTariffListRequest;
-use WishboxCdek\Request\Calculator\CalculateTariffRequest;
 use WishboxCdek\Request\Calculator\CalculateTariffWithServicesRequest;
+use WishboxCdek\Request\Calculator\CalculatorRequestDto;
+use WishboxCdek\Request\Calculator\CalculatorTariffListRequestDto;
 use WishboxCdek\Response\Calculator\AvailableTariffsResponse;
-use WishboxCdek\Response\Calculator\CalculateTariffListResponse;
 use WishboxCdek\Response\Calculator\CalculateTariffResponse;
+use WishboxCdek\Response\Calculator\CalculatorTariffListResponseDto;
 
-final class CalculatorApi
+final readonly class CalculatorApi
 {
-    public function __construct(private readonly CdekClient $client)
-    {
-    }
+	public function __construct(private CdekClient $client)
+	{
+	}
 
-    public function calculateTariffList(CalculateTariffListRequest $request): CalculateTariffListResponse
-    {
-        return CalculateTariffListResponse::fromArray(
-            $this->client->request('POST', '/v2/calculator/tarifflist', [], $request->toArray())
-        );
-    }
+	public function calculateTariffList(CalculatorTariffListRequestDto $request): CalculatorTariffListResponseDto
+	{
+		return CalculatorTariffListResponseDto::fromArray(
+			$this->client->request('POST', '/v2/calculator/tarifflist', [], $request->toArray())
+		);
+	}
 
-    public function calculateTariff(CalculateTariffRequest $request): CalculateTariffResponse
-    {
-        return CalculateTariffResponse::fromArray(
-            $this->client->request('POST', '/v2/calculator/tariff', [], $request->toArray())
-        );
-    }
+    public function calculateTariff(CalculatorRequestDto $request): CalculateTariffResponse
+	{
+		return CalculateTariffResponse::fromArray(
+			$this->client->request('POST', '/v2/calculator/tariff', [], $request->toArray())
+		);
+	}
 
-    public function calculateTariffWithServices(CalculateTariffWithServicesRequest $request): CalculateTariffResponse
-    {
-        return CalculateTariffResponse::fromArray(
-            $this->client->request('POST', '/v2/calculator/tariffAndService', [], $request->toArray())
-        );
-    }
+	public function calculateTariffWithServices(CalculateTariffWithServicesRequest $request): CalculateTariffResponse
+	{
+		return CalculateTariffResponse::fromArray(
+			$this->client->request('POST', '/v2/calculator/tariffAndService', [], $request->toArray())
+		);
+	}
 
-    public function getAvailableTariffs(): AvailableTariffsResponse
-    {
-        return AvailableTariffsResponse::fromArray(
-            $this->client->request('GET', '/v2/calculator/alltariffs')
-        );
-    }
+	public function getAvailableTariffs(): AvailableTariffsResponse
+	{
+		return AvailableTariffsResponse::fromArray(
+			$this->client->request('GET', '/v2/calculator/alltariffs')
+		);
+	}
 }

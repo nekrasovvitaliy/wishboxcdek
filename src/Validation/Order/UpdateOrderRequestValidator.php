@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace WishboxCdek\Validation\Order;
 
 use WishboxCdek\Exception\OrderValidationException;
-use WishboxCdek\Request\Order\UpdateOrderRequest;
+use WishboxCdek\Request\Order\OrderUpdateRequestDto;
 use WishboxCdek\Validation\Order\Rule\DeliverySenderRequiredRule;
 use WishboxCdek\Validation\Order\Rule\UpdateOrderValidationRule;
 use WishboxCdek\Validation\Order\Rule\UpdateSenderValidationRule;
@@ -28,7 +28,7 @@ final class UpdateOrderRequestValidator
         ];
     }
 
-    public function validate(UpdateOrderRequest $request): void
+    public function validate(OrderUpdateRequestDto $request): void
     {
         $errors = [];
 

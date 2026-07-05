@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace WishboxCdek\Validation\Order\Rule;
 
-use WishboxCdek\Request\Order\CreateOrderRequest;
+use WishboxCdek\Request\Order\OrderCreateRequestDto;
 
 interface CreateOrderValidationRule
 {
     /**
      * @return list<string>
      */
-    public function validate(CreateOrderRequest $request): array;
+    public function validate(OrderCreateRequestDto $request): array;
 }

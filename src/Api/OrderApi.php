@@ -5,25 +5,28 @@ declare(strict_types=1);
 namespace WishboxCdek\Api;
 
 use WishboxCdek\CdekClient;
+use WishboxCdek\Exception\HttpException;
 use WishboxCdek\Request\Order\CreateClientReturnRequest;
 use WishboxCdek\Request\Order\CreateOrderRefusalRequest;
-use WishboxCdek\Request\Order\CreateOrderRequest;
+use WishboxCdek\Request\Order\OrderCreateRequestDto;
 use WishboxCdek\Request\Order\GetOrderByNumberRequest;
-use WishboxCdek\Request\Order\UpdateOrderRequest;
+use WishboxCdek\Request\Order\OrderUpdateRequestDto;
+use WishboxCdek\Response\Error\SimplifiedResponseDto1;
+use WishboxCdek\Response\Order\ResponseDtoOrderResponseDto;
+use WishboxCdek\Response\Order\ResponseDtoRootEntityDto;
 use WishboxCdek\Response\Async\AsyncResponse;
-use WishboxCdek\Response\Order\OrderDetails;
 use WishboxCdek\Response\Order\OrderIntakeDto;
 use WishboxCdek\Validation\Order\CreateOrderRequestValidator;
 use WishboxCdek\Validation\Order\UpdateOrderRequestValidator;
 use WishboxCdek\Validation\Uuid\UuidValidator;
 
-final class OrderApi
+final readonly class OrderApi
 {
-    private readonly CreateOrderRequestValidator $createOrderValidator;
-    private readonly UpdateOrderRequestValidator $updateOrderValidator;
-    private readonly UuidValidator $uuidValidator;
+    private CreateOrderRequestValidator $createOrderValidator;
+    private UpdateOrderRequestValidator $updateOrderValidator;
+    private UuidValidator $uuidValidator;
 
-    public function __construct(private readonly CdekClient $client)
+    public function __construct(private CdekClient $client)
     {
         $this->createOrderValidator = new CreateOrderRequestValidator();
         $this->updateOrderValidator = new UpdateOrderRequestValidator();
@@ -33,59 +36,99 @@ final class OrderApi
     /**
      * Returns order details by CDEK order number.
      */
-    public function getByNumber(GetOrderByNumberRequest $request): OrderDetails
+    public function getByNumber(GetOrderByNumberRequest $request): ResponseDtoOrderResponseDto|SimplifiedResponseDto1
     {
-        return OrderDetails::fromArray(
-            $this->client->request('GET', '/v2/orders', $request->toArray(), null, [], true, false)
-        );
+        try {
+            return ResponseDtoOrderResponseDto::fromArray(
+                $this->client->request('GET', '/v2/orders', $request->toArray(), null, [], true, false)
+            );
+        } catch (HttpException $exception) {
+            if ($exception->getStatusCode() !== 400) {
+                throw $exception;
+            }
+
+            return SimplifiedResponseDto1::fromArray($exception->getResponse());
+        }
     }
 
     /**
      * Creates a new order.
      */
-    public function create(CreateOrderRequest $request): AsyncResponse
+    public function create(OrderCreateRequestDto $request): ResponseDtoRootEntityDto|SimplifiedResponseDto1
     {
         $this->createOrderValidator->validate($request);
 
-        return AsyncResponse::fromArray(
-            $this->client->request('POST', '/v2/orders', [], $request->toArray())
-        );
+        try {
+            return ResponseDtoRootEntityDto::fromArray(
+                $this->client->request('POST', '/v2/orders', [], $request->toArray())
+            );
+        } catch (HttpException $exception) {
+            if ($exception->getStatusCode() !== 400) {
+                throw $exception;
+            }
+
+            return SimplifiedResponseDto1::fromArray($exception->getResponse());
+        }
     }
 
     /**
      * Updates an existing order.
      */
-    public function update(UpdateOrderRequest $request): AsyncResponse
+    public function update(OrderUpdateRequestDto $request): ResponseDtoRootEntityDto|SimplifiedResponseDto1
     {
         $this->updateOrderValidator->validate($request);
 
-        return AsyncResponse::fromArray(
-            $this->client->request('PATCH', '/v2/orders', [], $request->toArray())
-        );
+        try {
+            return ResponseDtoRootEntityDto::fromArray(
+                $this->client->request('PATCH', '/v2/orders', [], $request->toArray())
+            );
+        } catch (HttpException $exception) {
+            if ($exception->getStatusCode() !== 400) {
+                throw $exception;
+            }
+
+            return SimplifiedResponseDto1::fromArray($exception->getResponse());
+        }
     }
 
     /**
      * Returns order details by order UUID.
      */
-    public function getByUuid(string $uuid): OrderDetails
+    public function getByUuid(string $uuid): ResponseDtoOrderResponseDto|SimplifiedResponseDto1
     {
         $this->uuidValidator->validate($uuid);
 
-        return OrderDetails::fromArray(
-            $this->client->request('GET', '/v2/orders/' . $uuid, [], null, [], true, false)
-        );
+        try {
+            return ResponseDtoOrderResponseDto::fromArray(
+                $this->client->request('GET', '/v2/orders/' . $uuid, [], null, [], true, false)
+            );
+        } catch (HttpException $exception) {
+            if ($exception->getStatusCode() !== 400) {
+                throw $exception;
+            }
+
+            return SimplifiedResponseDto1::fromArray($exception->getResponse());
+        }
     }
 
     /**
      * Deletes an order by UUID.
      */
-    public function delete(string $uuid): AsyncResponse
+    public function delete(string $uuid): ResponseDtoRootEntityDto|SimplifiedResponseDto1
     {
         $this->uuidValidator->validate($uuid);
 
-        return AsyncResponse::fromArray(
-            $this->client->request('DELETE', '/v2/orders/' . $uuid)
-        );
+        try {
+            return ResponseDtoRootEntityDto::fromArray(
+                $this->client->request('DELETE', '/v2/orders/' . $uuid)
+            );
+        } catch (HttpException $exception) {
+            if ($exception->getStatusCode() !== 400) {
+                throw $exception;
+            }
+
+            return SimplifiedResponseDto1::fromArray($exception->getResponse());
+        }
     }
 
     /**

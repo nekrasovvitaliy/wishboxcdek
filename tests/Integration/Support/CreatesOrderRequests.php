@@ -4,21 +4,21 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Support;
 
-use WishboxCdek\Request\Order\CreateOrderRequest;
-use WishboxCdek\Request\Order\ContactDto;
+use WishboxCdek\Request\Order\OrderCreateRequestDto;
 use WishboxCdek\Request\Order\MoneyDto;
 use WishboxCdek\Request\Order\PackageRequestDto;
 use WishboxCdek\Request\Order\ItemRequestDto;
 use WishboxCdek\Request\Order\PhoneDto;
+use WishboxCdek\Request\Order\RecipientContactDto;
 use WishboxCdek\Request\Order\RequestFromLocationDto;
 use WishboxCdek\Request\Order\RequestToLocationDto;
 use WishboxCdek\Request\Order\SenderContactDto;
 
 trait CreatesOrderRequests
 {
-    protected function createValidOrderRequest(): CreateOrderRequest
+    protected function createValidOrderRequest(): OrderCreateRequestDto
     {
-        return CreateOrderRequest::make(
+        return OrderCreateRequestDto::make(
             tariffCode: 137,
             sender: new SenderContactDto(
                 name: 'Wishbox Sender',
@@ -26,7 +26,7 @@ trait CreatesOrderRequests
                     new PhoneDto(number: '+79990000001'),
                 ],
             ),
-            recipient: new ContactDto(
+            recipient: new RecipientContactDto(
                 name: 'Wishbox Recipient',
                 phones: [
                     new PhoneDto(number: '+79990000002'),
@@ -61,7 +61,6 @@ trait CreatesOrderRequests
             ));
     }
 }
-
 
 
 

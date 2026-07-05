@@ -6,8 +6,8 @@ namespace Tests\Integration;
 
 use WishboxCdek\Request\Location\GetCitiesRequest;
 use WishboxCdek\Request\Location\GetRegionsRequest;
-use WishboxCdek\Response\Location\CityDto;
 use WishboxCdek\Response\Location\RegionDto;
+use WishboxCdek\Response\Location\V2LocationCityDto;
 
 final class LocationApiIntegrationTest extends CdekIntegrationTestCase
 {
@@ -37,7 +37,7 @@ final class LocationApiIntegrationTest extends CdekIntegrationTestCase
 
         self::assertIsArray($response);
         self::assertNotEmpty($response);
-        self::assertContainsOnlyInstancesOf(CityDto::class, $response);
+        self::assertContainsOnlyInstancesOf(V2LocationCityDto::class, $response);
         self::assertNotSame('', $response[0]->city);
 
         foreach ($response as $city) {

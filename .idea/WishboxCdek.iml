@@ -43,7 +43,5 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="pkg_radicalmart_wishboxcdek_j4" />
-    <orderEntry type="module" module-name="pkg_wishboxcdek_j4" />
   </component>
 </module>

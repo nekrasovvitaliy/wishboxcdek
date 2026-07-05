@@ -14,14 +14,16 @@ use WishboxCdek\Enum\AdditionalOrderType;
 use WishboxCdek\Enum\Language;
 use WishboxCdek\Enum\OrderType;
 use WishboxCdek\Request\Calculator\AdditionalServiceDto;
-use WishboxCdek\Request\Calculator\CalculateTariffListRequest;
-use WishboxCdek\Request\Calculator\CalculateTariffRequest;
+use WishboxCdek\Request\Calculator\CalcAdditionalServiceDto;
+use WishboxCdek\Request\Calculator\CalcPackageResponseDto;
+use WishboxCdek\Request\Calculator\CalculatorLocationDto;
+use WishboxCdek\Request\Calculator\CalculatorRequestDto;
+use WishboxCdek\Request\Calculator\CalculatorTariffListRequestDto;
 use WishboxCdek\Request\Calculator\CalculateTariffWithServicesRequest;
 use WishboxCdek\Request\Calculator\LocationDto;
-use WishboxCdek\Request\Calculator\PackageDto;
 use WishboxCdek\Response\Calculator\AvailableTariffCodeDto;
 use WishboxCdek\Response\Calculator\AvailableTariffsResponse;
-use WishboxCdek\Response\Calculator\CalculateTariffListResponse;
+use WishboxCdek\Response\Calculator\CalculatorTariffListResponseDto;
 use WishboxCdek\Response\Calculator\CalculateTariffResponse;
 use WishboxCdek\Response\Calculator\ServiceCalculationDto;
 use WishboxCdek\Response\Calculator\TariffCodeDto;
@@ -44,8 +46,8 @@ final class CalculatorApiTest extends TestCase
             ]
         );
 
-        $request = new CalculateTariffListRequest(
-            fromLocation: new LocationDto(
+        $request = new CalculatorTariffListRequestDto(
+            fromLocation: new CalculatorLocationDto(
                 code: 44,
                 postalCode: '101000',
                 countryCode: 'RU',
@@ -55,7 +57,7 @@ final class CalculatorApiTest extends TestCase
                 longitude: '37.6173',
                 latitude: '55.7558',
             ),
-            toLocation: new LocationDto(
+            toLocation: new CalculatorLocationDto(
                 code: 137,
                 postalCode: '190000',
                 countryCode: 'RU',
@@ -66,20 +68,20 @@ final class CalculatorApiTest extends TestCase
                 latitude: '59.9386',
             ),
             packages: [
-                new PackageDto(weight: 1000, length: 10, width: 20, height: 30),
+                new CalcPackageResponseDto(weight: 1000, length: 10, width: 20, height: 30),
             ],
             type: OrderType::INTERNET_SHOP,
             additionalOrderTypes: [
                 AdditionalOrderType::LTL,
             ],
-            currency: 'RUB',
+            currency: 1,
             date: '2025-03-24T14:15:22+0700',
             lang: Language::RUS,
         );
 
         $response = $client->calculator()->calculateTariffList($request);
 
-        self::assertInstanceOf(CalculateTariffListResponse::class, $response);
+        self::assertInstanceOf(CalculatorTariffListResponseDto::class, $response);
         self::assertCount(1, $response->tariffCodes);
         self::assertContainsOnlyInstancesOf(TariffCodeDto::class, $response->tariffCodes);
         self::assertSame(136, $response->tariffCodes[0]->tariffCode);
@@ -106,7 +108,7 @@ final class CalculatorApiTest extends TestCase
                 'date' => '2025-03-24T14:15:22+0700',
                 'type' => 1,
                 'additional_order_types' => [2],
-                'currency' => 'RUB',
+                'currency' => 1,
                 'lang' => 'rus',
                 'from_location' => [
                     'code' => 44,
@@ -157,9 +159,9 @@ final class CalculatorApiTest extends TestCase
             ]
         );
 
-        $request = new CalculateTariffRequest(
+        $request = new CalculatorRequestDto(
             tariffCode: 139,
-            fromLocation: new LocationDto(
+            fromLocation: new CalculatorLocationDto(
                 code: 44,
                 postalCode: '101000',
                 countryCode: 'RU',
@@ -169,7 +171,7 @@ final class CalculatorApiTest extends TestCase
                 longitude: '37.6173',
                 latitude: '55.7558',
             ),
-            toLocation: new LocationDto(
+            toLocation: new CalculatorLocationDto(
                 code: 137,
                 postalCode: '190000',
                 countryCode: 'RU',
@@ -180,15 +182,15 @@ final class CalculatorApiTest extends TestCase
                 latitude: '59.9386',
             ),
             packages: [
-                new PackageDto(weight: 1000, length: 10, width: 20, height: 30),
+                new CalcPackageResponseDto(weight: 1000, length: 10, width: 20, height: 30),
             ],
             type: OrderType::INTERNET_SHOP,
             additionalOrderTypes: [
                 AdditionalOrderType::LTL,
             ],
-            currency: 'RUB',
+            currency: 1,
             services: [
-                new AdditionalServiceDto(code: 'INSURANCE', parameter: '1000'),
+                new CalcAdditionalServiceDto(code: 'INSURANCE', parameter: '1000'),
             ],
             date: '2025-03-24T14:15:22+0700',
             lang: Language::RUS,
@@ -228,7 +230,7 @@ final class CalculatorApiTest extends TestCase
             json_encode([
                 'date' => '2025-03-24T14:15:22+0700',
                 'type' => 1,
-                'currency' => 'RUB',
+                'currency' => 1,
                 'lang' => 'rus',
                 'tariff_code' => 139,
                 'from_location' => [
@@ -312,7 +314,7 @@ final class CalculatorApiTest extends TestCase
                 new AdditionalServiceDto(code: 'TRYING_ON', parameter: '1'),
             ],
             packages: [
-                new PackageDto(weight: 1000, length: 10, width: 20, height: 30),
+                new CalcPackageResponseDto(weight: 1000, length: 10, width: 20, height: 30),
             ],
             type: OrderType::INTERNET_SHOP,
             additionalOrderTypes: [
@@ -425,7 +427,3 @@ final class CalculatorApiTest extends TestCase
         self::assertStringContainsString('/v2/calculator/alltariffs', (string) $httpClient->requests[0]->getUri());
     }
 }
-
-
-
-

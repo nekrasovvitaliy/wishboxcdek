@@ -28,6 +28,7 @@ final readonly class SenderContactDto extends RequestData
         public ?string $tin = null,
         public ?string $passportDateOfBirth = null,
         public ?string $email = null,
+        public ?bool $passportRequirementsSatisfied = null,
     ) {
         $this->phones = self::validateList($phones, PhoneDto::class, self::class, 'phones');
     }
@@ -115,6 +116,7 @@ final readonly class SenderContactDto extends RequestData
             'passport_date_of_birth' => $this->passportDateOfBirth,
             'email' => $this->email,
             'phones' => $this->phones,
+            'passport_requirements_satisfied' => $this->passportRequirementsSatisfied,
         ]);
     }
 
@@ -130,6 +132,7 @@ final readonly class SenderContactDto extends RequestData
         ?string $tin = null,
         ?string $passportDateOfBirth = null,
         ?string $email = null,
+        ?bool $passportRequirementsSatisfied = null,
     ): self
     {
         return new self(
@@ -144,6 +147,7 @@ final readonly class SenderContactDto extends RequestData
             tin: $tin ?? $this->tin,
             passportDateOfBirth: $passportDateOfBirth ?? $this->passportDateOfBirth,
             email: $email ?? $this->email,
+            passportRequirementsSatisfied: $passportRequirementsSatisfied ?? $this->passportRequirementsSatisfied,
         );
     }
 }
