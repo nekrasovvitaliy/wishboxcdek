@@ -6,6 +6,7 @@ namespace WishboxCdek\Api;
 
 use WishboxCdek\CdekClient;
 use WishboxCdek\Request\Passport\GetPassportRequest;
+use WishboxCdek\Response\Error\SimplifiedResponseDto1;
 use WishboxCdek\Response\Passport\PassportResponse;
 
 final class PassportApi
@@ -16,8 +17,14 @@ final class PassportApi
 
     public function get(GetPassportRequest $request): PassportResponse
     {
-        return PassportResponse::fromArray(
-            $this->client->request('GET', '/v2/passport', $request->toArray())
+        return $this->client->requestMapped(
+            'GET',
+            '/v2/passport',
+            [
+                200 => PassportResponse::class,
+                400 => SimplifiedResponseDto1::class,
+            ],
+            $request->toArray()
         );
     }
 }

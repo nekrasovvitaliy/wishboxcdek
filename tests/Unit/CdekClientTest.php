@@ -10,6 +10,7 @@ use Tests\Support\Http\FakeRequestFactory;
 use Tests\Support\Http\FakeResponse;
 use Tests\Support\Http\FakeStreamFactory;
 use WishboxCdek\CdekClient;
+use WishboxCdek\Exception\ApiException;
 use WishboxCdek\Enum\Language;
 use WishboxCdek\Enum\OrderType;
 use WishboxCdek\Enum\PassportClient;
@@ -46,6 +47,7 @@ use WishboxCdek\Request\Passport\GetPassportRequest;
 use WishboxCdek\Request\Registry\GetRegistriesRequest;
 use WishboxCdek\Response\Async\AsyncResponse;
 use WishboxCdek\Response\DeliveryPoint\OfficeDto;
+use WishboxCdek\Response\Error\SimplifiedResponseDto;
 use WishboxCdek\Response\Error\SimplifiedResponseDto1;
 use WishboxCdek\Response\Intake\IntakeAvailableDaysResponse;
 use WishboxCdek\Response\Location\CityByCoordinatesDto;
@@ -425,7 +427,7 @@ final class CdekClientTest extends TestCase
     public function test_client_fetches_token_automatically_before_authenticated_request(): void
     {
         $httpClient = new FakeHttpClient([
-            new FakeResponse(200, '{"access_token":"auto-token"}'),
+            new FakeResponse(200, '{"access_token":"auto-token","token_type":"bearer","expires_in":3600,"scope":"all","jti":"token-id"}'),
             new FakeResponse(200, '[{"country_code":"RU","country":"Russia","region":"Moscow","region_code":77}]'),
         ]);
 
@@ -603,10 +605,10 @@ final class CdekClientTest extends TestCase
         }
     }
 
-    public function test_create_order_returns_simplified_response_for_bad_request(): void
+    public function test_create_order_throws_api_exception_with_root_entity_response_for_bad_request(): void
     {
         $httpClient = new FakeHttpClient([
-            new FakeResponse(400, '{"errors":[{"code":"v2_bad_request","additional_code":"0x0003","message":"Bad create"}],"warnings":[{"code":"warn_create","message":"Create warning"}]}'),
+            new FakeResponse(400, '{"requests":[{"type":"CREATE","date_time":"2026-07-06T07:46:27+0000","state":"INVALID","errors":[{"code":"v2_field_is_empty","message":"[packages[0].items[0].ware_key] is empty"}],"warnings":[{"code":"warn_create","message":"Create warning"}]}],"related_entities":[]}'),
         ]);
 
         $client = new CdekClient(
@@ -619,44 +621,51 @@ final class CdekClientTest extends TestCase
             ]
         );
 
-        $response = $client->orders()->create(
-            OrderCreateRequestDto::make(
-                tariffCode: 139,
-                sender: new SenderContactDto(
-                    name: 'Wishbox Sender',
-                    phones: [new PhoneDto(number: '+79990000001')],
-                ),
-                recipient: new RecipientContactDto(
-                    name: 'John Doe',
-                    phones: [new PhoneDto(number: '+79990000002')],
-                ),
-                packages: [
-                    new PackageRequestDto(
-                        number: 'PKG-1',
-                        weight: 1000,
-                        items: [
-                            new ItemRequestDto(
-                                name: 'Item',
-                                wareKey: 'SKU-1',
-                                payment: new MoneyDto(value: 1000),
-                                cost: 1000,
-                                weight: 1000,
-                                amount: 1,
-                            ),
-                        ],
+        try {
+            $client->orders()->create(
+                OrderCreateRequestDto::make(
+                    tariffCode: 139,
+                    sender: new SenderContactDto(
+                        name: 'Wishbox Sender',
+                        phones: [new PhoneDto(number: '+79990000001')],
                     ),
-                ],
-            )
-                ->withToLocation(new RequestToLocationDto(code: 137, address: 'Pushkina 1'))
-        );
+                    recipient: new RecipientContactDto(
+                        name: 'John Doe',
+                        phones: [new PhoneDto(number: '+79990000002')],
+                    ),
+                    packages: [
+                        new PackageRequestDto(
+                            number: 'PKG-1',
+                            weight: 1000,
+                            items: [
+                                new ItemRequestDto(
+                                    name: 'Item',
+                                    wareKey: 'SKU-1',
+                                    payment: new MoneyDto(value: 1000),
+                                    cost: 1000,
+                                    weight: 1000,
+                                    amount: 1,
+                                ),
+                            ],
+                        ),
+                    ],
+                )
+                    ->withToLocation(new RequestToLocationDto(code: 137, address: 'Pushkina 1'))
+            );
+            self::fail('Expected ApiException was not thrown.');
+        } catch (ApiException $exception) {
+            self::assertSame(400, $exception->getStatusCode());
+            $response = $exception->getResponse();
+        }
 
-        self::assertInstanceOf(SimplifiedResponseDto1::class, $response);
-        self::assertCount(1, $response->errors);
-        self::assertSame('v2_bad_request', $response->errors[0]->code);
-        self::assertSame('0x0003', $response->errors[0]->additionalCode);
-        self::assertSame('Bad create', $response->errors[0]->message);
-        self::assertCount(1, $response->warnings);
-        self::assertSame('warn_create', $response->warnings[0]->code);
+        self::assertInstanceOf(ResponseDtoRootEntityDto::class, $response);
+        self::assertTrue($response->hasErrors());
+        self::assertCount(1, $response->getErrors());
+        self::assertSame('v2_field_is_empty', $response->getErrors()[0]->code);
+        self::assertNull($response->getErrors()[0]->additionalCode);
+        self::assertSame('[packages[0].items[0].ware_key] is empty', $response->getErrors()[0]->message);
+        self::assertCount(1, $response->getWarnings());
+        self::assertSame('warn_create', $response->getWarnings()[0]->code);
     }
 
     public function test_update_order_throws_validation_exception_before_http_request(): void
@@ -744,17 +753,23 @@ final class CdekClientTest extends TestCase
             ]
         );
 
-        $response = $client->orders()->update(
-            OrderUpdateRequestDto::make(
-                type: OrderType::INTERNET_SHOP,
-                tariffCode: 136,
-                recipient: new RecipientContactDto(
-                    name: 'Recipient',
-                    phones: [new PhoneDto(number: '+79990000002')],
-                ),
-                packages: [new PackageRequestDto(number: 'PKG-1', weight: 1000)],
-            )->withUuid('order-uuid')
-        );
+        try {
+            $client->orders()->update(
+                OrderUpdateRequestDto::make(
+                    type: OrderType::INTERNET_SHOP,
+                    tariffCode: 136,
+                    recipient: new RecipientContactDto(
+                        name: 'Recipient',
+                        phones: [new PhoneDto(number: '+79990000002')],
+                    ),
+                    packages: [new PackageRequestDto(number: 'PKG-1', weight: 1000)],
+                )->withUuid('order-uuid')
+            );
+            self::fail('Expected ApiException was not thrown.');
+        } catch (ApiException $exception) {
+            self::assertSame(400, $exception->getStatusCode());
+            $response = $exception->getResponse();
+        }
 
         self::assertInstanceOf(SimplifiedResponseDto1::class, $response);
         self::assertCount(1, $response->errors);
@@ -768,7 +783,7 @@ final class CdekClientTest extends TestCase
     public function test_get_order_by_uuid_returns_typed_order_details(): void
     {
         $httpClient = new FakeHttpClient([
-            new FakeResponse(200, '{"entity":{"uuid":"order-uuid","cdek_number":"1234567890","number":"ORDER-1","tariff_code":136,"developer_key":"wishbox-dev","additional_order_types":[2,9],"sender":{"name":"Sender","phones":[{"number":"+79990000001"}]},"packages":[{"number":"PKG-1","weight":1000,"items":[{"name":"Item","ware_key":"SKU-1","cost":1000,"weight":500,"amount":1}]}]},"requests":[{"request_uuid":"req-order-1","state":"ACCEPTED"}],"related_entities":[{"uuid":"related-uuid","type":"return_order","cdek_number":"9876543210","time_from":"15:00","time_to":"18:00"}]}'),
+            new FakeResponse(200, '{"entity":{"uuid":"order-uuid","cdek_number":"1234567890","number":"ORDER-1","tariff_code":136,"developer_key":"wishbox-dev","additional_order_types":[2,9],"sender":{"name":"Sender","phones":[{"number":"+79990000001"}]},"packages":[{"number":"PKG-1","weight":1000,"items":[{"name":"Item","ware_key":"SKU-1","cost":1000,"weight":500,"amount":1}]}],"statuses":[{"code":"CREATED","name":"Created","date_time":"2026-04-01T10:00:00+0000"}]},"requests":[{"request_uuid":"req-order-1","state":"ACCEPTED"}],"related_entities":[{"uuid":"related-uuid","type":"return_order","cdek_number":"9876543210","time_from":"15:00","time_to":"18:00"}]}'),
         ]);
 
         $client = new CdekClient(
@@ -789,6 +804,8 @@ final class CdekClientTest extends TestCase
         self::assertSame('ORDER-1', $response->entity?->number);
         self::assertSame(136, $response->entity?->tariffCode);
         self::assertSame('wishbox-dev', $response->entity?->developerKey);
+        self::assertCount(1, $response->entity?->statuses);
+        self::assertSame('CREATED', $response->entity?->statuses[0]->code);
         self::assertCount(1, $response->requests);
         self::assertSame('req-order-1', $response->requests[0]->requestUuid);
         self::assertSame('ACCEPTED', $response->requests[0]->state);
@@ -840,7 +857,13 @@ final class CdekClientTest extends TestCase
             ]
         );
 
-        $response = $client->orders()->getByNumber(new GetOrderByNumberRequest(imNumber: 'ORDER-404'));
+        try {
+            $client->orders()->getByNumber(new GetOrderByNumberRequest(imNumber: 'ORDER-404'));
+            self::fail('Expected ApiException was not thrown.');
+        } catch (ApiException $exception) {
+            self::assertSame(400, $exception->getStatusCode());
+            $response = $exception->getResponse();
+        }
 
         self::assertInstanceOf(SimplifiedResponseDto1::class, $response);
         self::assertCount(1, $response->errors);
@@ -894,7 +917,13 @@ final class CdekClientTest extends TestCase
             ]
         );
 
-        $response = $client->orders()->delete('72753031-e66b-4146-ab8c-52179ef4020a');
+        try {
+            $client->orders()->delete('72753031-e66b-4146-ab8c-52179ef4020a');
+            self::fail('Expected ApiException was not thrown.');
+        } catch (ApiException $exception) {
+            self::assertSame(400, $exception->getStatusCode());
+            $response = $exception->getResponse();
+        }
 
         self::assertInstanceOf(SimplifiedResponseDto1::class, $response);
         self::assertCount(1, $response->errors);
@@ -1111,7 +1140,7 @@ final class CdekClientTest extends TestCase
     public function test_delete_intake_returns_typed_async_response(): void
     {
         $httpClient = new FakeHttpClient([
-            new FakeResponse(202, '{"entity":{"uuid":"deleted-intake-uuid"},"requests":[{"request_uuid":"req-delete-intake-1","type":"DELETE","state":"ACCEPTED"}]}'),
+            new FakeResponse(200, '{"entity":{"uuid":"deleted-intake-uuid"},"requests":[{"request_uuid":"req-delete-intake-1","type":"DELETE","state":"ACCEPTED"}]}'),
         ]);
 
         $client = new CdekClient(
@@ -1255,7 +1284,42 @@ final class CdekClientTest extends TestCase
         self::assertSame('application/pdf', $httpClient->requests[0]->getHeaderLine('Accept'));
         self::assertStringContainsString('/v2/print/barcodes/72753031-e66b-4146-ab8c-52179ef4020a.pdf', (string) $httpClient->requests[0]->getUri());
     }
-    public function test_http_exception_collects_top_level_errors_and_warnings(): void
+
+    public function test_send_raw_request_returns_status_headers_and_body_without_decoding(): void
+    {
+        $httpClient = new FakeHttpClient([
+            (new FakeResponse(418, 'plain text error'))
+                ->withHeader('X-Trace-Id', 'trace-1'),
+        ]);
+
+        $client = new CdekClient(
+            $httpClient,
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            [
+                'base_url' => CdekClient::SANDBOX_BASE_URL,
+                'access_token' => 'test-token',
+            ]
+        );
+
+        $response = $client->sendRawRequest('POST', '/v2/raw', ['foo' => 'bar'], ['hello' => 'world']);
+
+        self::assertSame(418, $response->statusCode);
+        self::assertSame('plain text error', $response->body);
+        self::assertSame('trace-1', $response->getHeaderLine('X-Trace-Id'));
+        self::assertCount(1, $httpClient->requests);
+        self::assertSame('POST', $httpClient->requests[0]->getMethod());
+        self::assertSame('application/json', $httpClient->requests[0]->getHeaderLine('Accept'));
+        self::assertSame('application/json', $httpClient->requests[0]->getHeaderLine('Content-Type'));
+        self::assertSame('Bearer test-token', $httpClient->requests[0]->getHeaderLine('Authorization'));
+        self::assertStringContainsString('/v2/raw?foo=bar', (string) $httpClient->requests[0]->getUri());
+        self::assertJsonStringEqualsJsonString(
+            '{"hello":"world"}',
+            (string) $httpClient->requests[0]->getBody()
+        );
+    }
+
+    public function test_location_bad_request_returns_simplified_error_response(): void
     {
         $httpClient = new FakeHttpClient([
             new FakeResponse(400, '{"errors":[{"code":"bad_request","additional_code":"0x01","message":"Top level error"}],"warnings":[{"code":"warn_1","message":"Top level warning"}]}'),
@@ -1273,19 +1337,19 @@ final class CdekClientTest extends TestCase
 
         try {
             $client->locations()->getRegions(new GetRegionsRequest(countryCodes: 'RU'));
-            self::fail('Expected HttpException was not thrown.');
-        } catch (HttpException $exception) {
+            self::fail('Expected ApiException was not thrown.');
+        } catch (ApiException $exception) {
             self::assertSame(400, $exception->getStatusCode());
-            self::assertSame('Top level error', $exception->getMessage());
-            self::assertCount(1, $exception->getErrors());
-            self::assertCount(1, $exception->getWarnings());
-            self::assertSame('bad_request', $exception->getErrors()[0]->code);
-            self::assertSame('0x01', $exception->getErrors()[0]->additionalCode);
-            self::assertSame('Top level warning', $exception->getWarnings()[0]->message);
+            $response = $exception->getResponse();
         }
+
+        self::assertInstanceOf(SimplifiedResponseDto::class, $response);
+        self::assertCount(1, $response->errors);
+        self::assertSame('bad_request', $response->errors[0]->code);
+        self::assertSame('Top level error', $response->errors[0]->message);
     }
 
-    public function test_http_exception_collects_nested_request_errors(): void
+    public function test_location_bad_request_collects_nested_request_errors(): void
     {
         $httpClient = new FakeHttpClient([
             new FakeResponse(400, '{"requests":[{"errors":[{"code":"v2_field_is_empty","additional_code":"0x1E0EBE20","message":"[code] is empty"}],"warnings":[{"code":"warn_nested","message":"Nested warning"}]}]}'),
@@ -1303,15 +1367,16 @@ final class CdekClientTest extends TestCase
 
         try {
             $client->locations()->getPostalcodes(new GetPostalcodesRequest(code: 44));
-            self::fail('Expected HttpException was not thrown.');
-        } catch (HttpException $exception) {
-            self::assertSame('[code] is empty', $exception->getMessage());
-            self::assertCount(1, $exception->getErrors());
-            self::assertCount(1, $exception->getWarnings());
-            self::assertSame('v2_field_is_empty', $exception->getErrors()[0]->code);
-            self::assertSame('0x1E0EBE20', $exception->getErrors()[0]->additionalCode);
-            self::assertSame('Nested warning', $exception->getWarnings()[0]->message);
+            self::fail('Expected ApiException was not thrown.');
+        } catch (ApiException $exception) {
+            self::assertSame(400, $exception->getStatusCode());
+            $response = $exception->getResponse();
         }
+
+        self::assertInstanceOf(SimplifiedResponseDto::class, $response);
+        self::assertCount(1, $response->errors);
+        self::assertSame('v2_field_is_empty', $response->errors[0]->code);
+        self::assertSame('[code] is empty', $response->errors[0]->message);
     }
 
     public function test_successful_async_response_with_accepted_state_does_not_throw(): void

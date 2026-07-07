@@ -11,6 +11,7 @@ use WishboxCdek\Request\Calculator\CalculatorTariffListRequestDto;
 use WishboxCdek\Response\Calculator\AvailableTariffsResponse;
 use WishboxCdek\Response\Calculator\CalculateTariffResponse;
 use WishboxCdek\Response\Calculator\CalculatorTariffListResponseDto;
+use WishboxCdek\Response\Error\SimplifiedResponseDto1;
 
 final readonly class CalculatorApi
 {
@@ -20,29 +21,55 @@ final readonly class CalculatorApi
 
 	public function calculateTariffList(CalculatorTariffListRequestDto $request): CalculatorTariffListResponseDto
 	{
-		return CalculatorTariffListResponseDto::fromArray(
-			$this->client->request('POST', '/v2/calculator/tarifflist', [], $request->toArray())
+		return $this->client->requestMapped(
+			'POST',
+			'/v2/calculator/tarifflist',
+			[
+				200 => CalculatorTariffListResponseDto::class,
+				400 => SimplifiedResponseDto1::class,
+			],
+			[],
+			$request->toArray()
 		);
 	}
 
     public function calculateTariff(CalculatorRequestDto $request): CalculateTariffResponse
 	{
-		return CalculateTariffResponse::fromArray(
-			$this->client->request('POST', '/v2/calculator/tariff', [], $request->toArray())
+		return $this->client->requestMapped(
+			'POST',
+			'/v2/calculator/tariff',
+			[
+				200 => CalculateTariffResponse::class,
+				400 => SimplifiedResponseDto1::class,
+			],
+			[],
+			$request->toArray()
 		);
 	}
 
 	public function calculateTariffWithServices(CalculateTariffWithServicesRequest $request): CalculateTariffResponse
 	{
-		return CalculateTariffResponse::fromArray(
-			$this->client->request('POST', '/v2/calculator/tariffAndService', [], $request->toArray())
+		return $this->client->requestMapped(
+			'POST',
+			'/v2/calculator/tariffAndService',
+			[
+				200 => CalculateTariffResponse::class,
+				400 => SimplifiedResponseDto1::class,
+			],
+			[],
+			$request->toArray()
 		);
 	}
 
 	public function getAvailableTariffs(): AvailableTariffsResponse
 	{
-		return AvailableTariffsResponse::fromArray(
-			$this->client->request('GET', '/v2/calculator/alltariffs')
+		return $this->client->requestMapped(
+			'GET',
+			'/v2/calculator/alltariffs',
+			[
+				200 => AvailableTariffsResponse::class,
+				400 => SimplifiedResponseDto1::class,
+			]
 		);
 	}
 }

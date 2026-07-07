@@ -29,7 +29,9 @@
   "scripts": {
     "test": "phpunit --configuration phpunit.xml",
     "test:integration": "phpunit --configuration phpunit.integration.xml",
-    "lint": "find src tests -name '*.php' -print0 | xargs -0 -n1 php -l"
+    "lint": "find src tests -name '*.php' -print0 | xargs -0 -n1 php -l",
+    "example:get-order-by-uuid": "php examples/get-order-by-uuid.php",
+    "example:get-order-by-uuid:debug": "XDEBUG_MODE=debug XDEBUG_TRIGGER=1 php examples/get-order-by-uuid.php"
   },
   "minimum-stability": "stable",
   "prefer-stable": true

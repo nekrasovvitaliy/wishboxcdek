@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace WishboxCdek\Api;
 
 use WishboxCdek\CdekClient;
-use WishboxCdek\Exception\HttpException;
 use WishboxCdek\Request\Order\CreateClientReturnRequest;
 use WishboxCdek\Request\Order\CreateOrderRefusalRequest;
 use WishboxCdek\Request\Order\OrderCreateRequestDto;
@@ -36,99 +35,98 @@ final readonly class OrderApi
     /**
      * Returns order details by CDEK order number.
      */
-    public function getByNumber(GetOrderByNumberRequest $request): ResponseDtoOrderResponseDto|SimplifiedResponseDto1
+    public function getByNumber(GetOrderByNumberRequest $request): ResponseDtoOrderResponseDto
     {
-        try {
-            return ResponseDtoOrderResponseDto::fromArray(
-                $this->client->request('GET', '/v2/orders', $request->toArray(), null, [], true, false)
-            );
-        } catch (HttpException $exception) {
-            if ($exception->getStatusCode() !== 400) {
-                throw $exception;
-            }
-
-            return SimplifiedResponseDto1::fromArray($exception->getResponse());
-        }
+        return $this->client->requestMapped(
+            'GET',
+            '/v2/orders',
+            [
+                200 => ResponseDtoOrderResponseDto::class,
+                400 => SimplifiedResponseDto1::class,
+            ],
+            $request->toArray(),
+            null,
+            [],
+            true,
+            false
+        );
     }
 
     /**
      * Creates a new order.
      */
-    public function create(OrderCreateRequestDto $request): ResponseDtoRootEntityDto|SimplifiedResponseDto1
+    public function create(OrderCreateRequestDto $request): ResponseDtoRootEntityDto
     {
         $this->createOrderValidator->validate($request);
 
-        try {
-            return ResponseDtoRootEntityDto::fromArray(
-                $this->client->request('POST', '/v2/orders', [], $request->toArray())
-            );
-        } catch (HttpException $exception) {
-            if ($exception->getStatusCode() !== 400) {
-                throw $exception;
-            }
-
-            return SimplifiedResponseDto1::fromArray($exception->getResponse());
-        }
+        return $this->client->requestMapped(
+            'POST',
+            '/v2/orders',
+            [
+                202 => ResponseDtoRootEntityDto::class,
+                400 => ResponseDtoRootEntityDto::class,
+            ],
+            [],
+            $request->toArray()
+        );
     }
 
     /**
      * Updates an existing order.
      */
-    public function update(OrderUpdateRequestDto $request): ResponseDtoRootEntityDto|SimplifiedResponseDto1
+    public function update(OrderUpdateRequestDto $request): ResponseDtoRootEntityDto
     {
         $this->updateOrderValidator->validate($request);
 
-        try {
-            return ResponseDtoRootEntityDto::fromArray(
-                $this->client->request('PATCH', '/v2/orders', [], $request->toArray())
-            );
-        } catch (HttpException $exception) {
-            if ($exception->getStatusCode() !== 400) {
-                throw $exception;
-            }
-
-            return SimplifiedResponseDto1::fromArray($exception->getResponse());
-        }
+        return $this->client->requestMapped(
+            'PATCH',
+            '/v2/orders',
+            [
+                202 => ResponseDtoRootEntityDto::class,
+                400 => SimplifiedResponseDto1::class,
+            ],
+            [],
+            $request->toArray()
+        );
     }
 
     /**
      * Returns order details by order UUID.
      */
-    public function getByUuid(string $uuid): ResponseDtoOrderResponseDto|SimplifiedResponseDto1
+    public function getByUuid(string $uuid): ResponseDtoOrderResponseDto
     {
         $this->uuidValidator->validate($uuid);
 
-        try {
-            return ResponseDtoOrderResponseDto::fromArray(
-                $this->client->request('GET', '/v2/orders/' . $uuid, [], null, [], true, false)
-            );
-        } catch (HttpException $exception) {
-            if ($exception->getStatusCode() !== 400) {
-                throw $exception;
-            }
-
-            return SimplifiedResponseDto1::fromArray($exception->getResponse());
-        }
+        return $this->client->requestMapped(
+            'GET',
+            '/v2/orders/' . $uuid,
+            [
+                200 => ResponseDtoOrderResponseDto::class,
+                400 => SimplifiedResponseDto1::class,
+            ],
+            [],
+            null,
+            [],
+            true,
+            false
+        );
     }
 
     /**
      * Deletes an order by UUID.
      */
-    public function delete(string $uuid): ResponseDtoRootEntityDto|SimplifiedResponseDto1
+    public function delete(string $uuid): ResponseDtoRootEntityDto
     {
         $this->uuidValidator->validate($uuid);
 
-        try {
-            return ResponseDtoRootEntityDto::fromArray(
-                $this->client->request('DELETE', '/v2/orders/' . $uuid)
-            );
-        } catch (HttpException $exception) {
-            if ($exception->getStatusCode() !== 400) {
-                throw $exception;
-            }
-
-            return SimplifiedResponseDto1::fromArray($exception->getResponse());
-        }
+        return $this->client->requestMapped(
+            'DELETE',
+            '/v2/orders/' . $uuid,
+            [
+                202 => ResponseDtoRootEntityDto::class,
+                400 => SimplifiedResponseDto1::class,
+            ]
+        );
     }
 
     /**
@@ -140,24 +138,28 @@ final readonly class OrderApi
     {
         $this->uuidValidator->validate($orderUuid, 'order_uuid');
 
-        $response = $this->client->request(
+        return $this->client->requestMapped(
             'GET',
             '/v2/orders/' . $orderUuid . '/intakes',
+            [
+                200 => static function ($response): array {
+                    $intakes = [];
+                    foreach ($response->data as $intake) {
+                        if (is_array($intake)) {
+                            $intakes[] = OrderIntakeDto::fromArray($intake);
+                        }
+                    }
+
+                    return $intakes;
+                },
+                400 => SimplifiedResponseDto1::class,
+            ],
             [],
             null,
             [],
             true,
             false
         );
-
-        $intakes = [];
-        foreach ($response as $intake) {
-            if (is_array($intake)) {
-                $intakes[] = OrderIntakeDto::fromArray($intake);
-            }
-        }
-
-        return $intakes;
     }
 
     /**
@@ -167,8 +169,15 @@ final readonly class OrderApi
     {
         $this->uuidValidator->validate($uuid);
 
-        return AsyncResponse::fromArray(
-            $this->client->request('POST', '/v2/orders/' . $uuid . '/refusal', [], $request->toArray())
+        return $this->client->requestMapped(
+            'POST',
+            '/v2/orders/' . $uuid . '/refusal',
+            [
+                202 => AsyncResponse::class,
+                400 => SimplifiedResponseDto1::class,
+            ],
+            [],
+            $request->toArray()
         );
     }
 
@@ -179,8 +188,15 @@ final readonly class OrderApi
     {
         $this->uuidValidator->validate($uuid);
 
-        return AsyncResponse::fromArray(
-            $this->client->request('POST', '/v2/orders/' . $uuid . '/clientReturn', [], $request->toArray())
+        return $this->client->requestMapped(
+            'POST',
+            '/v2/orders/' . $uuid . '/clientReturn',
+            [
+                202 => AsyncResponse::class,
+                400 => SimplifiedResponseDto1::class,
+            ],
+            [],
+            $request->toArray()
         );
     }
 }

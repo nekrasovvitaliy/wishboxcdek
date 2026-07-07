@@ -12,6 +12,7 @@ use WishboxCdek\Response\Async\AsyncResponse;
 use WishboxCdek\Response\Delivery\DeliveryDetailsResponse;
 use WishboxCdek\Response\Delivery\DeliveryIntervalsResponse;
 use WishboxCdek\Response\Delivery\EstimatedDeliveryIntervalsResponse;
+use WishboxCdek\Response\Error\SimplifiedResponseDto1;
 use WishboxCdek\Validation\Delivery\RegisterDeliveryRequestValidator;
 use WishboxCdek\Validation\Uuid\UuidValidator;
 
@@ -28,15 +29,28 @@ final class DeliveryApi
 
     public function getIntervals(GetDeliveryIntervalsRequest $request): DeliveryIntervalsResponse
     {
-        return DeliveryIntervalsResponse::fromArray(
-            $this->client->request('GET', '/v2/delivery/intervals', $request->toArray())
+        return $this->client->requestMapped(
+            'GET',
+            '/v2/delivery/intervals',
+            [
+                200 => DeliveryIntervalsResponse::class,
+                400 => SimplifiedResponseDto1::class,
+            ],
+            $request->toArray()
         );
     }
 
     public function getEstimatedIntervals(GetEstimatedDeliveryIntervalsRequest $request): EstimatedDeliveryIntervalsResponse
     {
-        return EstimatedDeliveryIntervalsResponse::fromArray(
-            $this->client->request('POST', '/v2/delivery/estimatedIntervals', [], $request->toArray())
+        return $this->client->requestMapped(
+            'POST',
+            '/v2/delivery/estimatedIntervals',
+            [
+                200 => EstimatedDeliveryIntervalsResponse::class,
+                400 => SimplifiedResponseDto1::class,
+            ],
+            [],
+            $request->toArray()
         );
     }
 
@@ -44,8 +58,15 @@ final class DeliveryApi
     {
         $this->registerDeliveryValidator->validate($request);
 
-        return AsyncResponse::fromArray(
-            $this->client->request('POST', '/v2/delivery', [], $request->toArray())
+        return $this->client->requestMapped(
+            'POST',
+            '/v2/delivery',
+            [
+                202 => AsyncResponse::class,
+                400 => SimplifiedResponseDto1::class,
+            ],
+            [],
+            $request->toArray()
         );
     }
 
@@ -53,8 +74,18 @@ final class DeliveryApi
     {
         $this->uuidValidator->validate($uuid);
 
-        return DeliveryDetailsResponse::fromArray(
-            $this->client->request('GET', '/v2/delivery/' . $uuid, [], null, [], true, false)
+        return $this->client->requestMapped(
+            'GET',
+            '/v2/delivery/' . $uuid,
+            [
+                200 => DeliveryDetailsResponse::class,
+                400 => SimplifiedResponseDto1::class,
+            ],
+            [],
+            null,
+            [],
+            true,
+            false
         );
     }
 }

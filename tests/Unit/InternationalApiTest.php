@@ -10,7 +10,7 @@ use Tests\Support\Http\FakeRequestFactory;
 use Tests\Support\Http\FakeResponse;
 use Tests\Support\Http\FakeStreamFactory;
 use WishboxCdek\CdekClient;
-use WishboxCdek\Exception\HttpException;
+use WishboxCdek\Exception\ApiException;
 use WishboxCdek\Request\International\CheckPackageRestrictionsRequest;
 use WishboxCdek\Request\International\LocationDto;
 use WishboxCdek\Request\International\RestrictionPackageItemRequestDto;
@@ -18,6 +18,7 @@ use WishboxCdek\Request\International\RestrictionPackageRequestDto;
 use WishboxCdek\Response\International\PackageRestrictionsResponse;
 use WishboxCdek\Response\International\RestrictionItemDto;
 use WishboxCdek\Response\International\RestrictionPackageDto;
+use WishboxCdek\Response\Error\SimplifiedResponseDto1;
 
 final class InternationalApiTest extends TestCase
 {
@@ -159,7 +160,7 @@ final class InternationalApiTest extends TestCase
         self::assertSame('Check data', $response->warnings[0]->message);
     }
 
-    public function test_check_package_restrictions_throws_http_exception_for_bad_request(): void
+    public function test_check_package_restrictions_returns_simplified_response_for_bad_request(): void
     {
         $httpClient = new FakeHttpClient([
             new FakeResponse(400, '{"errors":[{"code":"v2_field_is_empty","additional_code":"0x1","message":"[packages] is empty"}]}'),
@@ -184,14 +185,16 @@ final class InternationalApiTest extends TestCase
 
         try {
             $client->international()->checkPackageRestrictions($request);
-            self::fail('Expected HttpException was not thrown.');
-        } catch (HttpException $exception) {
+            self::fail('Expected ApiException was not thrown.');
+        } catch (ApiException $exception) {
             self::assertSame(400, $exception->getStatusCode());
-            self::assertSame('[packages] is empty', $exception->getMessage());
-            self::assertCount(1, $exception->getErrors());
-            self::assertSame('v2_field_is_empty', $exception->getErrors()[0]->code);
-            self::assertSame('0x1', $exception->getErrors()[0]->additionalCode);
-            self::assertSame('[packages] is empty', $exception->getErrors()[0]->message);
+            $response = $exception->getResponse();
         }
+
+        self::assertInstanceOf(SimplifiedResponseDto1::class, $response);
+        self::assertCount(1, $response->errors);
+        self::assertSame('v2_field_is_empty', $response->errors[0]->code);
+        self::assertSame('0x1', $response->errors[0]->additionalCode);
+        self::assertSame('[packages] is empty', $response->errors[0]->message);
     }
 }

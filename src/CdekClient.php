@@ -21,11 +21,13 @@ use WishboxCdek\Api\PrealertApi;
 use WishboxCdek\Api\PrintApi;
 use WishboxCdek\Api\RegistryApi;
 use WishboxCdek\Api\WebhookApi;
+use WishboxCdek\Exception\ApiException;
 use WishboxCdek\Exception\ApiResponseException;
 use WishboxCdek\Exception\CdekException;
 use WishboxCdek\Exception\ErrorResponseParser;
 use WishboxCdek\Exception\HttpException;
 use WishboxCdek\Response\CdekResponse;
+use WishboxCdek\Response\RawCdekResponse;
 
 final class CdekClient
 {
@@ -196,6 +198,81 @@ final class CdekClient
         return $this->send($method, $uri, $query, $body, $headers, $throwOnBusinessErrors);
     }
 
+    /**
+     * @param array<int, callable|string> $responseMap
+     */
+    public function requestMapped(
+        string $method,
+        string $uri,
+        array $responseMap,
+        array $query = [],
+        array|string|null $body = null,
+        array $headers = [],
+        bool $authenticated = true,
+        bool $throwOnBusinessErrors = true
+    ): mixed {
+        if ($authenticated) {
+            $this->ensureAccessToken();
+            $headers['Authorization'] = 'Bearer ' . $this->accessToken;
+        }
+
+        if ($body !== null && !isset($headers['Content-Type'])) {
+            $headers['Content-Type'] = 'application/json';
+        }
+
+        $response = $this->sendJsonResponse(
+            $method,
+            $uri,
+            $query,
+            $body,
+            $headers,
+            throwOnHttpErrors: false,
+            throwOnBusinessErrors: $throwOnBusinessErrors
+        );
+
+        $mapper = $responseMap[$response->statusCode] ?? null;
+
+        if ($mapper === null) {
+            if ($response->statusCode >= 400) {
+                $this->throwHttpException($response);
+            }
+
+            throw new CdekException(sprintf(
+                'Unexpected CDEK response status code %d for %s %s.',
+                $response->statusCode,
+                strtoupper($method),
+                $uri
+            ));
+        }
+
+        if (is_string($mapper) && method_exists($mapper, 'fromArray')) {
+            $mappedResponse = $mapper::fromArray($response->data);
+        } elseif (is_callable($mapper)) {
+            $mappedResponse = $mapper($response);
+        } else {
+            throw new CdekException(sprintf(
+                'Invalid CDEK response mapper for status code %d.',
+                $response->statusCode
+            ));
+        }
+
+        if ($response->statusCode >= 400) {
+            if (!is_object($mappedResponse)) {
+                throw new CdekException(sprintf(
+                    'CDEK API error mapper for status code %d must return response DTO object.',
+                    $response->statusCode
+                ));
+            }
+
+            $errors = ErrorResponseParser::extractErrors($response->data);
+            $message = ErrorResponseParser::extractMessage($response->data, $errors);
+
+            throw new ApiException($message, $response->statusCode, $mappedResponse);
+        }
+
+        return $mappedResponse;
+    }
+
     public function requestForm(
         string $method,
         string $uri,
@@ -218,6 +295,18 @@ final class CdekClient
         bool $authenticated = true,
         string $accept = 'application/pdf'
     ): string {
+        return $this->sendBinary($method, $uri, $query, $body, $headers, $authenticated, $accept);
+    }
+
+    public function sendRawRequest(
+        string $method,
+        string $uri,
+        array $query = [],
+        array|string|null $body = null,
+        array $headers = [],
+        bool $authenticated = true,
+        string $accept = 'application/json'
+    ): RawCdekResponse {
         if ($authenticated) {
             $this->ensureAccessToken();
             $headers['Authorization'] = 'Bearer ' . $this->accessToken;
@@ -258,41 +347,36 @@ final class CdekClient
         array $headers,
         bool $throwOnBusinessErrors
     ): CdekResponse {
-        $payload = null;
+        return $this->sendJsonResponse(
+            $method,
+            $uri,
+            $query,
+            $body,
+            $headers,
+            throwOnHttpErrors: true,
+            throwOnBusinessErrors: $throwOnBusinessErrors
+        );
+    }
 
-        if (is_array($body)) {
-            $payload = json_encode($body, JSON_THROW_ON_ERROR);
-        } elseif (is_string($body)) {
-            $payload = $body;
-        }
-
-        $request = $this->requestFactory->createRequest(strtoupper($method), $this->buildUrl($uri, $query))
-            ->withHeader('Accept', 'application/json')
-            ->withHeader('User-Agent', $this->userAgent);
-
-        foreach ($headers as $name => $value) {
-            $request = $request->withHeader($name, $value);
-        }
-
-        if ($payload !== null) {
-            $request = $request->withBody($this->streamFactory->createStream($payload));
-        }
-
-        try {
-            $response = $this->httpClient->sendRequest($request);
-        } catch (ClientExceptionInterface $exception) {
-            throw new HttpException($exception->getMessage(), 0, [], [], [], $exception);
-        }
-
-        $statusCode = $response->getStatusCode();
-        $responseBody = (string) $response->getBody();
+    private function sendJsonResponse(
+        string $method,
+        string $uri,
+        array $query,
+        array|string|null $body,
+        array $headers,
+        bool $throwOnHttpErrors,
+        bool $throwOnBusinessErrors
+    ): CdekResponse {
+        $response = $this->sendRaw($method, $uri, $query, $body, $headers, 'application/json');
+        $statusCode = $response->statusCode;
+        $responseBody = $response->body;
 
         if ($responseBody === '' || $responseBody === 'null') {
-            if ($statusCode >= 400) {
+            if ($throwOnHttpErrors && $statusCode >= 400) {
                 throw new HttpException('CDEK request failed with empty response body.', $statusCode);
             }
 
-            return new CdekResponse([], $response->getHeaders());
+            return new CdekResponse([], $response->headers, $statusCode);
         }
 
         $decoded = json_decode($responseBody, true);
@@ -303,19 +387,61 @@ final class CdekClient
         $errors = ErrorResponseParser::extractErrors($decoded);
         $warnings = ErrorResponseParser::extractWarnings($decoded);
 
-        if ($statusCode >= 400) {
+        if ($throwOnHttpErrors && $statusCode >= 400) {
             $message = ErrorResponseParser::extractMessage($decoded, $errors);
             throw new HttpException($message, $statusCode, $decoded, $errors, $warnings);
         }
 
-        if ($throwOnBusinessErrors && ErrorResponseParser::hasBusinessErrors($decoded)) {
+        if ($statusCode < 400 && $throwOnBusinessErrors && ErrorResponseParser::hasBusinessErrors($decoded)) {
             $message = ErrorResponseParser::extractMessage($decoded, $errors);
             $requestStates = ErrorResponseParser::extractRequestStates($decoded);
 
             throw new ApiResponseException($message, $decoded, $errors, $warnings, $requestStates);
         }
 
-        return new CdekResponse($decoded, $response->getHeaders());
+        return new CdekResponse($decoded, $response->headers, $statusCode);
+    }
+
+    private function throwHttpException(CdekResponse $response): never
+    {
+        $errors = ErrorResponseParser::extractErrors($response->data);
+        $warnings = ErrorResponseParser::extractWarnings($response->data);
+        $message = ErrorResponseParser::extractMessage($response->data, $errors);
+
+        throw new HttpException($message, $response->statusCode, $response->data, $errors, $warnings);
+    }
+
+    private function sendBinary(
+        string $method,
+        string $uri,
+        array $query,
+        array|string|null $body,
+        array $headers,
+        bool $authenticated,
+        string $accept
+    ): string {
+        $response = $this->sendRawRequest($method, $uri, $query, $body, $headers, $authenticated, $accept);
+        $statusCode = $response->statusCode;
+        $responseBody = $response->body;
+
+        if ($statusCode >= 400) {
+            $decoded = json_decode($responseBody, true);
+            if (is_array($decoded)) {
+                $errors = ErrorResponseParser::extractErrors($decoded);
+                $warnings = ErrorResponseParser::extractWarnings($decoded);
+                $message = ErrorResponseParser::extractMessage($decoded, $errors);
+
+                throw new HttpException($message, $statusCode, $decoded, $errors, $warnings);
+            }
+
+            $message = $responseBody !== ''
+                ? 'CDEK request failed: ' . $responseBody
+                : 'CDEK request failed with empty response body.';
+
+            throw new HttpException($message, $statusCode);
+        }
+
+        return $responseBody;
     }
 
     private function sendRaw(
@@ -325,7 +451,7 @@ final class CdekClient
         array|string|null $body,
         array $headers,
         string $accept
-    ): string {
+    ): RawCdekResponse {
         $payload = null;
 
         if (is_array($body)) {
@@ -352,27 +478,11 @@ final class CdekClient
             throw new HttpException($exception->getMessage(), 0, [], [], [], $exception);
         }
 
-        $statusCode = $response->getStatusCode();
-        $responseBody = (string) $response->getBody();
-
-        if ($statusCode >= 400) {
-            $decoded = json_decode($responseBody, true);
-            if (is_array($decoded)) {
-                $errors = ErrorResponseParser::extractErrors($decoded);
-                $warnings = ErrorResponseParser::extractWarnings($decoded);
-                $message = ErrorResponseParser::extractMessage($decoded, $errors);
-
-                throw new HttpException($message, $statusCode, $decoded, $errors, $warnings);
-            }
-
-            $message = $responseBody !== ''
-                ? 'CDEK request failed: ' . $responseBody
-                : 'CDEK request failed with empty response body.';
-
-            throw new HttpException($message, $statusCode);
-        }
-
-        return $responseBody;
+        return new RawCdekResponse(
+            $response->getStatusCode(),
+            $response->getHeaders(),
+            (string) $response->getBody()
+        );
     }
 
     private function buildUrl(string $uri, array $query): string

@@ -6,6 +6,7 @@ namespace WishboxCdek\Api;
 
 use WishboxCdek\CdekClient;
 use WishboxCdek\Request\International\CheckPackageRestrictionsRequest;
+use WishboxCdek\Response\Error\SimplifiedResponseDto1;
 use WishboxCdek\Response\International\PackageRestrictionsResponse;
 
 final class InternationalApi
@@ -16,8 +17,15 @@ final class InternationalApi
 
     public function checkPackageRestrictions(CheckPackageRestrictionsRequest $request): PackageRestrictionsResponse
     {
-        return PackageRestrictionsResponse::fromArray(
-            $this->client->request('POST', '/v2/international/package/restrictions', [], $request->toArray())
+        return $this->client->requestMapped(
+            'POST',
+            '/v2/international/package/restrictions',
+            [
+                200 => PackageRestrictionsResponse::class,
+                400 => SimplifiedResponseDto1::class,
+            ],
+            [],
+            $request->toArray()
         );
     }
 }

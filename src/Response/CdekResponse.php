@@ -13,6 +13,7 @@ final readonly class CdekResponse
     public function __construct(
         public array $data,
         public array $headers = [],
+        public int $statusCode = 200,
     ) {
     }
 

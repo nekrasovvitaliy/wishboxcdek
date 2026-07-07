@@ -7,7 +7,7 @@ namespace WishboxCdek\Response\Order;
 final readonly class OrderStatusDto
 {
     public function __construct(
-        public ?int $code = null,
+        public ?string $code = null,
         public ?string $name = null,
         public ?string $dateTime = null,
         public ?int $reasonCode = null,
@@ -20,7 +20,7 @@ final readonly class OrderStatusDto
     public static function fromArray(array $data): self
     {
         return new self(
-            code: isset($data['code']) ? (int) $data['code'] : null,
+            code: isset($data['code']) ? (string) $data['code'] : null,
             name: isset($data['name']) ? (string) $data['name'] : null,
             dateTime: isset($data['date_time']) ? (string) $data['date_time'] : null,
             reasonCode: isset($data['reason_code']) ? (int) $data['reason_code'] : null,

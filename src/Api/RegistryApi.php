@@ -6,6 +6,7 @@ namespace WishboxCdek\Api;
 
 use WishboxCdek\CdekClient;
 use WishboxCdek\Request\Registry\GetRegistriesRequest;
+use WishboxCdek\Response\Error\SimplifiedResponseDto1;
 use WishboxCdek\Response\Registry\RegistriesResponse;
 
 final class RegistryApi
@@ -16,8 +17,14 @@ final class RegistryApi
 
     public function getList(GetRegistriesRequest $request): RegistriesResponse
     {
-        return RegistriesResponse::fromArray(
-            $this->client->request('GET', '/v2/registries', $request->toArray())
+        return $this->client->requestMapped(
+            'GET',
+            '/v2/registries',
+            [
+                200 => RegistriesResponse::class,
+                400 => SimplifiedResponseDto1::class,
+            ],
+            $request->toArray()
         );
     }
 }
