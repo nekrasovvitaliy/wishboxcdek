@@ -48,3 +48,25 @@ When handling `POST /v2/orders` response code `400`, keep support for extracting
 
 The practical response DTO for this actual `400` shape is `WishboxCdek\Response\Order\ResponseDtoRootEntityDto`.
 `OrderApi::create` should throw an API-level exception containing this DTO for `400 Bad Request`, and callers should read validation errors from `ResponseDtoRootEntityDto::getErrors()`.
+
+## POST `/v2/webhooks`: request schema uses response DTO with read-only UUID
+
+In `openapi_api_v2_integration.json`, `POST /v2/webhooks` declares request body schema `WebhookDto`.
+The same schema is also used for webhook responses and contains:
+
+- `uuid`, marked as `readOnly: true`;
+- `type`;
+- `url`.
+
+The schema also lists `uuid` in `required`, but clients should not send it when creating a webhook because CDEK generates the webhook UUID.
+
+For request payloads, use a dedicated request DTO:
+
+- `WishboxCdek\Request\Webhook\CreateWebhookRequestDto`
+
+It serializes only:
+
+- `type`;
+- `url`.
+
+Keep `WishboxCdek\Dto\OpenApi\WebhookDto` as the response/list DTO.

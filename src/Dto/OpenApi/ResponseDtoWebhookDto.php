@@ -11,15 +11,15 @@ namespace WishboxCdek\Dto\OpenApi;
  */
 final readonly class ResponseDtoWebhookDto
 {
-    public mixed $entity;
+    public ?WebhookDto $entity;
 
     /**
-     * @var array<int|string, mixed> of RequestInfoDto
+     * @var list<RequestInfoDto>
      */
     public array $requests;
 
     public function __construct(
-        mixed $entity = null,
+        ?WebhookDto $entity = null,
         array $requests = [],
     ) {
         $this->entity = $entity;
@@ -29,8 +29,13 @@ final readonly class ResponseDtoWebhookDto
     public static function fromArray(array $data): self
     {
         return new self(
-            entity: $data['entity'] ?? null,
-            requests: isset($data['requests']) && is_array($data['requests']) ? $data['requests'] : [],
+            entity: isset($data['entity']) && is_array($data['entity']) ? WebhookDto::fromArray($data['entity']) : null,
+            requests: isset($data['requests']) && is_array($data['requests'])
+                ? array_map(
+                    static fn (array $request): RequestInfoDto => RequestInfoDto::fromArray($request),
+                    $data['requests'],
+                )
+                : [],
         );
     }
 }

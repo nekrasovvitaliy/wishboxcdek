@@ -14,7 +14,7 @@ final readonly class ResponseDto
     public mixed $entity;
 
     /**
-     * @var array<int|string, mixed> of RequestInfoDto
+     * @var list<RequestInfoDto>
      */
     public array $requests;
 
@@ -30,7 +30,12 @@ final readonly class ResponseDto
     {
         return new self(
             entity: $data['entity'] ?? null,
-            requests: isset($data['requests']) && is_array($data['requests']) ? $data['requests'] : [],
+            requests: isset($data['requests']) && is_array($data['requests'])
+                ? array_map(
+                    static fn (array $request): RequestInfoDto => RequestInfoDto::fromArray($request),
+                    $data['requests'],
+                )
+                : [],
         );
     }
 }

@@ -20,7 +20,7 @@ final readonly class RequestInfoDto
     public mixed $state;
 
     /**
-     * @var array<int|string, mixed> of ErrorDto3
+     * @var list<ErrorDto3>
      */
     public array $errors;
 
@@ -45,7 +45,12 @@ final readonly class RequestInfoDto
             type: $data['type'] ?? null,
             dateTime: isset($data['date_time']) ? (string) $data['date_time'] : null,
             state: $data['state'] ?? null,
-            errors: isset($data['errors']) && is_array($data['errors']) ? $data['errors'] : [],
+            errors: isset($data['errors']) && is_array($data['errors'])
+                ? array_map(
+                    static fn (array $error): ErrorDto3 => ErrorDto3::fromArray($error),
+                    $data['errors'],
+                )
+                : [],
         );
     }
 }

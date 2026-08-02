@@ -45,21 +45,21 @@ final readonly class IntakeInfoResponseEntity
 
     public mixed $courierIdentityCard;
 
-    public mixed $sender;
+    public ?ContactDto $sender;
 
-    public mixed $fromLocation;
+    public ?LocationInfoDto $fromLocation;
 
-    public mixed $toLocation;
+    public ?LocationInfoDto $toLocation;
 
     public mixed $needCall;
 
     /**
-     * @var array<int|string, mixed> of IntakeStatusDto
+     * @var list<IntakeStatusDto>
      */
     public array $statuses;
 
     /**
-     * @var array<int|string, mixed> of IntakePackageDto
+     * @var list<IntakePackageDto>
      */
     public array $packages;
 
@@ -81,9 +81,9 @@ final readonly class IntakeInfoResponseEntity
         mixed $comment = null,
         mixed $courierPowerOfAttorney = null,
         mixed $courierIdentityCard = null,
-        mixed $sender = null,
-        mixed $fromLocation = null,
-        mixed $toLocation = null,
+        ?ContactDto $sender = null,
+        ?LocationInfoDto $fromLocation = null,
+        ?LocationInfoDto $toLocation = null,
         mixed $needCall = null,
         array $statuses = [],
         array $packages = [],
@@ -133,12 +133,26 @@ final readonly class IntakeInfoResponseEntity
             comment: $data['comment'] ?? null,
             courierPowerOfAttorney: $data['courier_power_of_attorney'] ?? null,
             courierIdentityCard: $data['courier_identity_card'] ?? null,
-            sender: $data['sender'] ?? null,
-            fromLocation: $data['from_location'] ?? null,
-            toLocation: $data['to_location'] ?? null,
+            sender: isset($data['sender']) && is_array($data['sender']) ? ContactDto::fromArray($data['sender']) : null,
+            fromLocation: isset($data['from_location']) && is_array($data['from_location'])
+                ? LocationInfoDto::fromArray($data['from_location'])
+                : null,
+            toLocation: isset($data['to_location']) && is_array($data['to_location'])
+                ? LocationInfoDto::fromArray($data['to_location'])
+                : null,
             needCall: $data['need_call'] ?? null,
-            statuses: isset($data['statuses']) && is_array($data['statuses']) ? $data['statuses'] : [],
-            packages: isset($data['packages']) && is_array($data['packages']) ? $data['packages'] : [],
+            statuses: isset($data['statuses']) && is_array($data['statuses'])
+                ? array_map(
+                    static fn (array $status): IntakeStatusDto => IntakeStatusDto::fromArray($status),
+                    $data['statuses'],
+                )
+                : [],
+            packages: isset($data['packages']) && is_array($data['packages'])
+                ? array_map(
+                    static fn (array $package): IntakePackageDto => IntakePackageDto::fromArray($package),
+                    $data['packages'],
+                )
+                : [],
         );
     }
 }

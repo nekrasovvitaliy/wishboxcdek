@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace WishboxCdek\Api;
 
 use WishboxCdek\CdekClient;
+use WishboxCdek\Dto\OpenApi\IntakeInfoResponseEntity;
 use WishboxCdek\Request\Order\CreateClientReturnRequest;
 use WishboxCdek\Request\Order\CreateOrderRefusalRequest;
 use WishboxCdek\Request\Order\OrderCreateRequestDto;
@@ -14,7 +15,6 @@ use WishboxCdek\Response\Error\SimplifiedResponseDto1;
 use WishboxCdek\Response\Order\ResponseDtoOrderResponseDto;
 use WishboxCdek\Response\Order\ResponseDtoRootEntityDto;
 use WishboxCdek\Response\Async\AsyncResponse;
-use WishboxCdek\Response\Order\OrderIntakeDto;
 use WishboxCdek\Validation\Order\CreateOrderRequestValidator;
 use WishboxCdek\Validation\Order\UpdateOrderRequestValidator;
 use WishboxCdek\Validation\Uuid\UuidValidator;
@@ -102,7 +102,7 @@ final readonly class OrderApi
             '/v2/orders/' . $uuid,
             [
                 200 => ResponseDtoOrderResponseDto::class,
-                400 => SimplifiedResponseDto1::class,
+                400 => ResponseDtoOrderResponseDto::class,
             ],
             [],
             null,
@@ -132,7 +132,7 @@ final readonly class OrderApi
     /**
      * Returns intake records linked to an order.
      *
-     * @return list<OrderIntakeDto>
+     * @return list<IntakeInfoResponseEntity>
      */
     public function getIntakes(string $orderUuid): array
     {
@@ -146,7 +146,7 @@ final readonly class OrderApi
                     $intakes = [];
                     foreach ($response->data as $intake) {
                         if (is_array($intake)) {
-                            $intakes[] = OrderIntakeDto::fromArray($intake);
+                            $intakes[] = IntakeInfoResponseEntity::fromArray($intake);
                         }
                     }
 

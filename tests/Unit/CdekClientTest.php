@@ -45,10 +45,13 @@ use WishboxCdek\Request\Print\CreateOrdersPrintRequest;
 use WishboxCdek\Request\Print\PrintOrderReferenceDto;
 use WishboxCdek\Request\Passport\GetPassportRequest;
 use WishboxCdek\Request\Registry\GetRegistriesRequest;
+use WishboxCdek\Request\Webhook\CreateWebhookRequestDto;
+use WishboxCdek\Dto\OpenApi\ResponseDtoWebhookResponseDto;
 use WishboxCdek\Response\Async\AsyncResponse;
 use WishboxCdek\Response\DeliveryPoint\OfficeDto;
 use WishboxCdek\Response\Error\SimplifiedResponseDto;
 use WishboxCdek\Response\Error\SimplifiedResponseDto1;
+use WishboxCdek\Dto\OpenApi\IntakeInfoResponseEntity;
 use WishboxCdek\Response\Intake\IntakeAvailableDaysResponse;
 use WishboxCdek\Response\Location\CityByCoordinatesDto;
 use WishboxCdek\Response\Location\PostalcodesDto;
@@ -187,6 +190,42 @@ final class CdekClientTest extends TestCase
         self::assertCount(1, $httpClient->requests);
         self::assertSame('GET', $httpClient->requests[0]->getMethod());
         self::assertStringContainsString('/v2/passport?order_uuid=72753031-e66b-4146-ab8c-52179ef4020a&client=SENDER', (string) $httpClient->requests[0]->getUri());
+    }
+
+    public function test_create_webhook_sends_typed_request_payload(): void
+    {
+        $httpClient = new FakeHttpClient([
+            new FakeResponse(200, '{"entity":{"uuid":"dd71e526-d850-46db-97db-164391414c5b"},"requests":[{"request_uuid":"request-uuid","type":"CREATE","state":"ACCEPTED"}]}'),
+        ]);
+
+        $client = new CdekClient(
+            $httpClient,
+            new FakeRequestFactory(),
+            new FakeStreamFactory(),
+            [
+                'base_url' => CdekClient::SANDBOX_BASE_URL,
+                'access_token' => 'test-token',
+            ]
+        );
+
+        $response = $client->webhooks()
+            ->create(new CreateWebhookRequestDto(
+                type: 'ORDER_STATUS',
+                url: 'https://example.com/cdek/webhook',
+            ));
+
+        self::assertInstanceOf(ResponseDtoWebhookResponseDto::class, $response);
+        self::assertSame('dd71e526-d850-46db-97db-164391414c5b', $response->entity?->uuid);
+        self::assertCount(1, $httpClient->requests);
+        self::assertSame('POST', $httpClient->requests[0]->getMethod());
+        self::assertStringContainsString('/v2/webhooks', (string) $httpClient->requests[0]->getUri());
+        self::assertSame(
+            [
+                'type' => 'ORDER_STATUS',
+                'url' => 'https://example.com/cdek/webhook',
+            ],
+            json_decode((string) $httpClient->requests[0]->getBody(), true)
+        );
     }
 
 
@@ -953,7 +992,7 @@ final class CdekClientTest extends TestCase
         $response = $client->orders()->getIntakes('72753031-e66b-4146-ab8c-52179ef4020a');
 
         self::assertCount(1, $response);
-        self::assertContainsOnlyInstancesOf(OrderIntakeDto::class, $response);
+        self::assertContainsOnlyInstancesOf(IntakeInfoResponseEntity::class, $response);
         self::assertSame('intake-uuid', $response[0]->uuid);
         self::assertSame('123456', $response[0]->cdekNumber);
         self::assertSame('order-uuid', $response[0]->orderUuid);

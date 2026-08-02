@@ -5,32 +5,78 @@ declare(strict_types=1);
 namespace WishboxCdek\Api;
 
 use WishboxCdek\CdekClient;
-use WishboxCdek\Request\Webhook\CreateWebhookRequest;
-use WishboxCdek\Request\Webhook\GetWebhooksRequest;
+use WishboxCdek\Dto\OpenApi\ResponseDto;
+use WishboxCdek\Dto\OpenApi\ResponseDtoWebhookDto;
+use WishboxCdek\Dto\OpenApi\ResponseDtoWebhookResponseDto;
+use WishboxCdek\Dto\OpenApi\WebhookDto;
+use WishboxCdek\Request\Webhook\CreateWebhookRequestDto;
+use WishboxCdek\Validation\Uuid\UuidValidator;
 
 final class WebhookApi
 {
+    private readonly UuidValidator $uuidValidator;
+
     public function __construct(private readonly CdekClient $client)
     {
+        $this->uuidValidator = new UuidValidator();
     }
 
-    public function getAll(?GetWebhooksRequest $request = null): array
+    /**
+     * @return list<WebhookDto>
+     */
+    public function getAll(): array
     {
-        return $this->client->request('GET', '/v2/webhooks', ($request ?? new GetWebhooksRequest())->toArray());
+        return $this->client->requestMapped(
+            'GET',
+            '/v2/webhooks',
+            [
+                200 => static fn ($response): array => array_map(
+                    static fn (array $webhook): WebhookDto => WebhookDto::fromArray($webhook),
+                    $response->data,
+                ),
+            ],
+        );
     }
 
-    public function create(CreateWebhookRequest $request): array
+    public function create(CreateWebhookRequestDto $request): ResponseDtoWebhookResponseDto
     {
-        return $this->client->request('POST', '/v2/webhooks', [], $request->toArray());
+        return $this->client->requestMapped(
+            'POST',
+            '/v2/webhooks',
+            [
+                200 => ResponseDtoWebhookResponseDto::class,
+                400 => ResponseDto::class,
+            ],
+            [],
+            $request->toArray()
+        );
     }
 
-    public function getById(string $uuid): array
+    public function getById(string $uuid): ResponseDtoWebhookDto
     {
-        return $this->client->request('GET', '/v2/webhooks/' . $uuid);
+        $this->uuidValidator->validate($uuid);
+
+        return $this->client->requestMapped(
+            'GET',
+            '/v2/webhooks/' . $uuid,
+            [
+                200 => ResponseDtoWebhookDto::class,
+                400 => ResponseDto::class,
+            ]
+        );
     }
 
-    public function deleteById(string $uuid): array
+    public function deleteById(string $uuid): ResponseDtoWebhookResponseDto
     {
-        return $this->client->request('DELETE', '/v2/webhooks/' . $uuid);
+        $this->uuidValidator->validate($uuid);
+
+        return $this->client->requestMapped(
+            'DELETE',
+            '/v2/webhooks/' . $uuid,
+            [
+                200 => ResponseDtoWebhookResponseDto::class,
+                400 => ResponseDto::class,
+            ]
+        );
     }
 }
